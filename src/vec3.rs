@@ -3,27 +3,33 @@
 use std::ops::{Add, AddAssign, Div, Mul, MulAssign, Neg, Sub, SubAssign};
 
 /// A three-dimensional real-valued vector.
-#[derive(Debug, Clone, Copy, PartialEq, Default)]
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Vec3(pub [f64; 3]);
 
 impl Vec3 {
     /// Constructs a new zero vector.
-    pub fn new() -> Self {
-        Self::default()
+    pub const fn new() -> Self {
+        Self([0.0; 3])
+    }
+    
+    /// Constructs a new vector with the given components.
+    pub const fn from_components(x: f64, y: f64, z: f64) -> Self {
+        Self([x, y, z])
     }
 
     /// Gets the x component of this vector.
-    pub fn x(&self) -> f64 {
+    pub const fn x(&self) -> f64 {
         self.0[0]
     }
 
     /// Gets the y component of this vector.
-    pub fn y(&self) -> f64 {
+    pub const fn y(&self) -> f64 {
         self.0[1]
     }
 
     /// Gets the z component of this vector.
-    pub fn z(&self) -> f64 {
+    pub const fn z(&self) -> f64 {
         self.0[2]
     }
 
@@ -40,17 +46,17 @@ impl Vec3 {
     /// This is more efficient than getting the length and squaring it
     /// afterwards, and should be preferred over [`Self::length()`] when the
     /// square of the length is needed.
-    pub fn square_length(&self) -> f64 {
+    pub const fn square_length(&self) -> f64 {
         self.0[0] * self.0[0] + self.0[1] * self.0[1] + self.0[2] * self.0[2]
     }
 
     /// Computes the dot product with another vector.
-    pub fn dot(&self, rhs: &Self) -> f64 {
+    pub const fn dot(&self, rhs: &Self) -> f64 {
         self.0[0] * rhs.0[0] + self.0[1] * rhs.0[1] + self.0[2] * rhs.0[2]
     }
 
     /// Computes the cross product with another vector.
-    pub fn cross(&self, rhs: &Self) -> Self {
+    pub const fn cross(&self, rhs: &Self) -> Self {
         Self([
             self.0[1] * rhs.0[2] - self.0[2] * rhs.0[1],
             self.0[2] * rhs.0[0] - self.0[0] * rhs.0[2],
@@ -64,12 +70,47 @@ impl Vec3 {
     }
 }
 
+impl Default for Vec3 {
+    /// Constructs a new zero vector.
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+impl From<[f64; 3]> for Vec3 {
+    /// Constructs a new vector with the given components.
+    fn from(value: [f64; 3]) -> Self {
+        Self(value)
+    }
+}
+
+impl From<(f64, f64, f64)> for Vec3 {
+    /// Constructs a new vector with the given components.
+    fn from(value: (f64, f64, f64)) -> Self {
+        Self(value.into())
+    }
+}
+
+impl From<Vec3> for [f64; 3] {
+    /// Extracts the components of the vector as an array.
+    fn from(value: Vec3) -> Self {
+        value.0
+    }
+}
+
+impl From<Vec3> for (f64, f64, f64) {
+    /// Extracts the components of the vector as a tuple.
+    fn from(value: Vec3) -> Self {
+        value.0.into()
+    }
+}
+
 impl Neg for Vec3 {
     type Output = Self;
 
-    /// Negate this vector.
+    /// Performs vector negation.
     ///
-    /// Equivalent to scaling this vector by a factor of -1.
+    /// This is equivalent to multiplying this vector by `-1.0`.
     fn neg(self) -> Self::Output {
         Self(self.0.map(Neg::neg))
     }
@@ -130,10 +171,9 @@ impl Mul<f64> for Vec3 {
 
 impl MulAssign<f64> for Vec3 {
     fn mul_assign(&mut self, rhs: f64) {
-        let components = self.0.each_mut();
-        *components[0] *= rhs;
-        *components[1] *= rhs;
-        *components[2] *= rhs;
+        for component in self.0.each_mut() {
+            *component *= rhs;
+        }
     }
 }
 
