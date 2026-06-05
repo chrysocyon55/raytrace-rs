@@ -13,11 +13,6 @@ impl Vec3 {
         Self([0.0; 3])
     }
 
-    /// Constructs a new vector with the given components.
-    pub const fn from_components(x: f64, y: f64, z: f64) -> Self {
-        Self([x, y, z])
-    }
-
     /// Gets the x component of this vector.
     pub const fn x(&self) -> f64 {
         self.0[0]
@@ -209,55 +204,55 @@ mod tests {
 
     #[test]
     fn binary_vector_math() {
-        let v1 = Vec3::from_components(1.0, 2.0, 3.0);
-        let v2 = Vec3::from_components(5.0, 7.0, 1.0);
-        assert_eq!(v1 + v2, Vec3::from_components(6.0, 9.0, 4.0));
-        assert_eq!(v2 + v1, Vec3::from_components(6.0, 9.0, 4.0));
-        assert_eq!(v1 - v2, Vec3::from_components(-4.0, -5.0, 2.0));
-        assert_eq!(v2 - v1, Vec3::from_components(4.0, 5.0, -2.0));
+        let v1 = Vec3([1.0, 2.0, 3.0]);
+        let v2 = Vec3([5.0, 7.0, 1.0]);
+        assert_eq!(v1 + v2, Vec3([6.0, 9.0, 4.0]));
+        assert_eq!(v2 + v1, Vec3([6.0, 9.0, 4.0]));
+        assert_eq!(v1 - v2, Vec3([-4.0, -5.0, 2.0]));
+        assert_eq!(v2 - v1, Vec3([4.0, 5.0, -2.0]));
 
         assert_eq!(v1.dot(&v2), 22.0);
         assert_eq!(v2.dot(&v1), 22.0);
-        assert_eq!(v1.cross(&v2), Vec3::from_components(-19.0, 14.0, -3.0));
-        assert_eq!(v2.cross(&v1), Vec3::from_components(19.0, -14.0, 3.0));
+        assert_eq!(v1.cross(&v2), Vec3([-19.0, 14.0, -3.0]));
+        assert_eq!(v2.cross(&v1), Vec3([19.0, -14.0, 3.0]));
     }
 
     #[test]
     fn vector_scalar_math() {
-        let v = Vec3::from_components(9.0, 4.0, -3.0);
-        assert_eq!(2.0 * v, Vec3::from_components(18.0, 8.0, -6.0));
-        assert_eq!(v * 2.0, Vec3::from_components(18.0, 8.0, -6.0));
-        assert_eq!(v / 2.0, Vec3::from_components(4.5, 2.0, -1.5));
+        let v = Vec3([9.0, 4.0, -3.0]);
+        assert_eq!(2.0 * v, Vec3([18.0, 8.0, -6.0]));
+        assert_eq!(v * 2.0, Vec3([18.0, 8.0, -6.0]));
+        assert_eq!(v / 2.0, Vec3([4.5, 2.0, -1.5]));
     }
 
     #[test]
     fn unary_vector_math() {
-        let v = Vec3::from_components(2.0, -5.0, 1.0);
-        assert_eq!(-v, Vec3::from_components(-2.0, 5.0, -1.0));
+        let v = Vec3([2.0, -5.0, 1.0]);
+        assert_eq!(-v, Vec3([-2.0, 5.0, -1.0]));
 
-        let v = Vec3::from_components(12.0, 16.0, -21.0);
+        let v = Vec3([12.0, 16.0, -21.0]);
         assert_eq!(v.square_length(), 841.0);
         assert_eq!(v.length(), 29.0);
 
-        let v = Vec3::from_components(4.0, 0.0, 0.0);
+        let v = Vec3([4.0, 0.0, 0.0]);
         assert_eq!(v.length(), 4.0);
-        assert_eq!(v.normalized(), Vec3::from_components(1.0, 0.0, 0.0));
+        assert_eq!(v.normalized(), Vec3([1.0, 0.0, 0.0]));
     }
 
     #[test]
     fn vector_assign_math() {
-        let mut v = Vec3::from_components(3.0, -6.0, 5.0);
+        let mut v = Vec3([3.0, -6.0, 5.0]);
 
-        v += Vec3::from_components(1.0, 2.0, -3.0);
-        assert_eq!(v, Vec3::from_components(4.0, -4.0, 2.0));
+        v += Vec3([1.0, 2.0, -3.0]);
+        assert_eq!(v, Vec3([4.0, -4.0, 2.0]));
 
-        v -= Vec3::from_components(6.0, 7.0, -1.0);
-        assert_eq!(v, Vec3::from_components(-2.0, -11.0, 3.0));
+        v -= Vec3([6.0, 7.0, -1.0]);
+        assert_eq!(v, Vec3([-2.0, -11.0, 3.0]));
 
         v *= 2.0;
-        assert_eq!(v, Vec3::from_components(-4.0, -22.0, 6.0));
+        assert_eq!(v, Vec3([-4.0, -22.0, 6.0]));
 
         v /= 2.0;
-        assert_eq!(v, Vec3::from_components(-2.0, -11.0, 3.0));
+        assert_eq!(v, Vec3([-2.0, -11.0, 3.0]));
     }
 }
