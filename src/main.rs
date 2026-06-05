@@ -10,46 +10,55 @@ use image::{Rgb, RgbImage};
 
 /// Returns the pixel color associated with a given ray.
 fn ray_color(ray: &Ray) -> Rgb<u8> {
-    // TODO: actual rendering logic.
-    // For now, just return a nice shade of blue :)
-    [10, 56, 192].into()
+    // Lerp from white to blue as the y component of the ray increases:
+    let unit_dir = ray.direction.normalized();
+    const WHITE: Vec3 = Vec3([1.0, 1.0, 1.0]);
+    const BLUE: Vec3 = Vec3([0.5, 0.7, 1.0]);
+    let blend = 0.5 * unit_dir.y() + 1.0;
+    let color = (1.0 - blend) * WHITE + blend * BLUE;
+    // Convert color scale from 0.0-1.0 to 0-255.
+    Rgb(color.0.map(|component| (255.99 * component).round() as u8))
 }
 
 fn main() {
     // Image size settings.
-    let aspect_ratio = 16.0 / 9.0;
-    let image_width = 400;
-    let image_height = (image_width as f64 / aspect_ratio) as u32;
-    assert!(image_height > 0);
+    const ASPECT_RATIO: f64 = 16.0 / 9.0;
+    const IMAGE_WIDTH: u32 = 400;
+    const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
+    assert!(IMAGE_HEIGHT > 0, "image height must be at least 1 px");
 
-    let mut img = RgbImage::new(image_width, image_height);
+    // Spacial coordinates: +X is right, +Y is up, +Z is into the screen.
+    // Viewport coordinates: +U is right, +V is down.
 
     // Viewport scaling.
-    let viewport_height = 2.0;
-    let viewport_width = viewport_height * image_width as f64 / image_height as f64;
+    const VIEWPORT_HEIGHT: f64 = 2.0;
+    const VIEWPORT_WIDTH: f64 = VIEWPORT_HEIGHT * IMAGE_WIDTH as f64 / IMAGE_HEIGHT as f64;
 
     // Camera settings.
-    let focal_length = 1.0;
-    let camera_center = Vec3::new();
+    const FOCAL_LENGTH: f64 = 1.0;
+    const CAMERA_CENTER: Vec3 = Vec3::new();
 
-    // Compute vectors along the axes of the viewport.
-    let viewport_u = Vec3::from_components(viewport_width, 0.0, 0.0);
-    let viewport_v = Vec3::from_components(-viewport_height, 0.0, 0.0);
-    // Compute the step size for each viewport dimension.
-    let step_u = viewport_u / image_width as f64;
-    let step_v = viewport_v / image_height as f64;
+    // Create vectors for the axes of the viewport in terms of spacial
+    // coordinates.
+    const VIEWPORT_U: Vec3 = Vec3::from_components(VIEWPORT_WIDTH, 0.0, 0.0);
+    const VIEWPORT_V: Vec3 = Vec3::from_components(0.0, -VIEWPORT_HEIGHT, 0.0);
+    // Compute the per-pixel step size for each viewport axis.
+    let step_u = VIEWPORT_U / IMAGE_WIDTH as f64;
+    let step_v = VIEWPORT_V / IMAGE_HEIGHT as f64;
     // Compute the origin (top-left) of the viewport and the center of the
     // first pixel.
-    let viewport_origin = camera_center
-        - Vec3::from_components(0.0, 0.0, focal_length)
-        - viewport_u / 2.0
-        - viewport_v / 2.0;
+    let viewport_origin = CAMERA_CENTER
+        - Vec3::from_components(0.0, 0.0, FOCAL_LENGTH)
+        - VIEWPORT_U / 2.0
+        - VIEWPORT_V / 2.0;
     let first_pixel = viewport_origin + 0.5 * (step_u + step_v);
 
-    for row in 0..image_height {
-        for col in 0..image_width {
-            let pixel_center = first_pixel + (step_u * row as f64) + (step_v * col as f64);
-            let ray_direction = pixel_center - camera_center;
+    let mut img = RgbImage::new(IMAGE_WIDTH, IMAGE_HEIGHT);
+
+    for row in 0..IMAGE_HEIGHT {
+        for col in 0..IMAGE_WIDTH {
+            let pixel_center = first_pixel + (step_u * col as f64) + (step_v * row as f64);
+            let ray_direction = pixel_center - CAMERA_CENTER;
             let ray = Ray::new(pixel_center, ray_direction);
             img.put_pixel(col, row, ray_color(&ray));
         }
