@@ -10,7 +10,7 @@ pub struct Ray {
 }
 
 impl Ray {
-    /// Co,nstructs a new ray that starts at the given origin and travels in a
+    /// Constructs a new ray that starts at the given origin and travels in a
     /// given direction.
     pub const fn new(origin: Vec3, direction: Vec3) -> Self {
         Self { origin, direction }
