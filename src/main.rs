@@ -1,9 +1,13 @@
 // Adapted from "Ray Tracing in One Weekend", at https://raytracing.github.io/.
 
+mod hit;
 mod ray;
+mod sphere;
 mod vec3;
 
+use crate::hit::{Hit, HitInfo};
 use crate::ray::Ray;
+use crate::sphere::Sphere;
 use crate::vec3::Vec3;
 
 use image::{Rgb, RgbImage};
@@ -17,57 +21,20 @@ fn to_color(v: Vec3) -> Rgb<u8> {
     Rgb(v.0.map(|component| (component * 255.0) as u8))
 }
 
-/// Determines whether the given ray hits a sphere with a given center and
-/// radius.
-///
-/// If the given ray hits the sphere, returns `Some` containing the time
-/// at which the ray intersects the sphere. Otherwise, if the ray does not hit
-/// the sphere, returns `None`.
-fn hits_sphere(center: Vec3, radius: f64, ray: &Ray) -> Option<f64> {
-    // A sphere is a set of vectors P that are all a distance of r away from
-    // the center C. We can express this using a dot product:
-    //      (C - P) . (C - P) = r^2
-    // Each ray is of the form Q + dt for some origin Q, direction d, and time
-    // t, which we plug in for P:
-    //      (C - (Q + dt)) . (C - (Q + dt)) = r^2
-    //      (-dt + (C - Q)) . (-dt + (C - Q)) = r^2
-    //      t^2 * (d . d) - 2td . (C - Q) + (C - Q) . (C - Q) = r^2
-    //      t^2 * (d . d) - 2td . (C - Q) + (C - Q) . (C - Q) - r^2 = 0
-    // This is a quadratic equation in t, with the following coefficients:
-    //      a = d . d
-    //      b = -2d . (C - Q)
-    //      c = (C - Q) . (C - Q) - r^2
-    // By computing the discriminant of the quadratic formula (the inside of
-    // the square root), we can see whether the equation has any real
-    // solutions. If it does, then the ray will intersect with the sphere.
-    //      t = (-b - sqrt(b^2 - 4ac)) / 2a
-    // Let h = d . (C - Q), then b = -2h:
-    //      t = (2h - sqrt((-2h)^2 - 4ac)) / 2a
-    //      t = (2h - 2*sqrt(h^2 - ac)) / 2a
-    //      t = (h - sqrt(h^2 - ac)) / a
-    let qc = center - ray.origin;
-    let a = ray.direction.dot(&ray.direction);
-    let h = ray.direction.dot(&qc);
-    let c = qc.dot(&qc) - radius * radius;
-    let discriminant = h * h - a * c;
-    if discriminant < 0.0 {
-        None
-    } else {
-        // Return the closer intersection time, since that's the side of the
-        // sphere facing the camera.
-        Some((h - discriminant.sqrt()) / a)
-    }
-}
-
 /// Returns the pixel color associated with a given ray.
 fn ray_color(ray: &Ray) -> Rgb<u8> {
     const SPHERE_CENTER: Vec3 = Vec3([0.0, 0.0, -1.0]);
     const RADIUS: f64 = 0.5;
+    const SPHERE: Sphere = Sphere::new(SPHERE_CENTER, RADIUS);
 
-    // Test for object collisions:
-    if let Some(t) = hits_sphere(SPHERE_CENTER, RADIUS, ray) {
-        // Compute the unit normal vector at the intersection point:
-        let normal = (ray.at_time(t) - SPHERE_CENTER).normalized();
+    // Test for sphere collision:
+    if let Some(HitInfo {
+        hit_point: _,
+        normal,
+        time: _,
+    }) = SPHERE.hit(ray, (f64::NEG_INFINITY, f64::INFINITY))
+    {
+        // Scale the unit normal and convert it into a color:
         let normal_scaled = 0.5 * (normal + Vec3([1.0, 1.0, 1.0]));
         let normal_color = to_color(normal_scaled);
         return normal_color;
