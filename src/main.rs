@@ -40,15 +40,22 @@ fn hits_sphere(center: Vec3, radius: f64, ray: &Ray) -> Option<f64> {
     // By computing the discriminant of the quadratic formula (the inside of
     // the square root), we can see whether the equation has any real
     // solutions. If it does, then the ray will intersect with the sphere.
+    //      t = (-b - sqrt(b^2 - 4ac)) / 2a
+    // Let h = d . (C - Q), then b = -2h:
+    //      t = (2h - sqrt((-2h)^2 - 4ac)) / 2a
+    //      t = (2h - 2*sqrt(h^2 - ac)) / 2a
+    //      t = (h - sqrt(h^2 - ac)) / a
     let qc = center - ray.origin;
     let a = ray.direction.dot(&ray.direction);
-    let b = -2.0 * ray.direction.dot(&qc);
+    let h = ray.direction.dot(&qc);
     let c = qc.dot(&qc) - radius * radius;
-    let discriminant = b * b - 4.0 * a * c;
+    let discriminant = h * h - a * c;
     if discriminant < 0.0 {
         None
     } else {
-        Some((-b - discriminant.sqrt()) / (2.0 * a))
+        // Return the closer intersection time, since that's the side of the
+        // sphere facing the camera.
+        Some((h - discriminant.sqrt()) / a)
     }
 }
 
