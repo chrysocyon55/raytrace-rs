@@ -54,7 +54,9 @@ fn main() {
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
     const IMAGE_WIDTH: u32 = 400;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
-    assert!(IMAGE_HEIGHT > 0, "image height must be at least 1 px");
+    const {
+        assert!(IMAGE_HEIGHT > 0, "image height must be at least 1 px");
+    }
 
     // Viewport scaling.
     const VIEWPORT_HEIGHT: f64 = 2.0;
