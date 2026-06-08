@@ -5,7 +5,7 @@ mod ray;
 mod sphere;
 mod vec3;
 
-use crate::hit::{Hit, HitInfo};
+use crate::hit::Hit;
 use crate::ray::Ray;
 use crate::sphere::Sphere;
 use crate::vec3::Vec3;
@@ -22,23 +22,15 @@ fn to_color(v: Vec3) -> Rgb<u8> {
 }
 
 /// Returns the pixel color associated with a given ray.
-fn ray_color(ray: &Ray) -> Rgb<u8> {
-    const SPHERE_CENTER: Vec3 = Vec3([0.0, 0.0, -1.0]);
-    const RADIUS: f64 = 0.5;
-    const SPHERE: Sphere = Sphere::new(SPHERE_CENTER, RADIUS);
-
-    // Test for sphere collision:
-    if let Some(HitInfo {
-        hit_point: _,
-        normal,
-        time: _,
-    }) = SPHERE.hit(ray, (f64::NEG_INFINITY, f64::INFINITY))
-    {
+fn ray_color(ray: &Ray, world: impl Hit) -> Rgb<u8> {
+    // Check for collisions with objects in the scene:
+    if let Some(info) = world.hit(ray, (0.0, f64::INFINITY)) {
         // Scale the unit normal and convert it into a color:
-        let normal_scaled = 0.5 * (normal + Vec3([1.0, 1.0, 1.0]));
+        let normal_scaled = 0.5 * (info.normal + Vec3([1.0, 1.0, 1.0]));
         let normal_color = to_color(normal_scaled);
         return normal_color;
     }
+
     // If the ray doesn't hit any objects, draw a gradient background.
     // Lerp from white to blue as the y component of the ray increases:
     let unit_dir = ray.direction.normalized();
@@ -52,7 +44,7 @@ fn ray_color(ray: &Ray) -> Rgb<u8> {
 fn main() {
     // Image size settings.
     const ASPECT_RATIO: f64 = 16.0 / 9.0;
-    const IMAGE_WIDTH: u32 = 400;
+    const IMAGE_WIDTH: u32 = 800;
     const IMAGE_HEIGHT: u32 = (IMAGE_WIDTH as f64 / ASPECT_RATIO) as u32;
     const {
         assert!(IMAGE_HEIGHT > 0, "image height must be at least 1 px");
@@ -82,6 +74,11 @@ fn main() {
     let viewport_origin = CAMERA_CENTER + VIEWPORT_DEPTH - (0.5 * VIEWPORT_U) - (0.5 * VIEWPORT_V);
     let first_pixel = viewport_origin + 0.5 * (step_u + step_v);
 
+    // Construct the list of objects in the scene.
+    let mut world = vec![];
+    world.push(Sphere::new(Vec3([5.0, 2.5, -50.0]), 20.0));
+    world.push(Sphere::new(Vec3([-3.0, -1.0, -7.0]), 2.0));
+
     let mut img = RgbImage::new(IMAGE_WIDTH, IMAGE_HEIGHT);
 
     for row in 0..IMAGE_HEIGHT {
@@ -92,7 +89,7 @@ fn main() {
             let ray_direction = pixel_center - CAMERA_CENTER;
             let ray = Ray::new(pixel_center, ray_direction);
             // Compute the ray's color and write it to the image buffer:
-            let px_color = ray_color(&ray);
+            let px_color = ray_color(&ray, world.as_slice());
             img.put_pixel(col, row, px_color);
         }
     }

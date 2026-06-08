@@ -1,6 +1,6 @@
 //! The sphere collider.
 
-use crate::hit::{Hit, HitInfo};
+use crate::hit::{self, Hit, HitInfo};
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
@@ -45,10 +45,10 @@ impl Hit for Sphere {
         //      t = (2h +/- 2*sqrt(h^2 - ac)) / 2a
         //      t = (h +/- sqrt(h^2 - ac)) / a
         let qc = self.center - ray.origin;
-        let a = ray.direction.dot(&ray.direction);
+        let a = ray.direction.square_length();
         let h = ray.direction.dot(&qc);
-        let c = qc.dot(&qc) - self.radius * self.radius;
-        let discriminant = h * h - a * c;
+        let c = qc.square_length() - (self.radius * self.radius);
+        let discriminant = (h * h) - (a * c);
         if discriminant < 0.0 {
             // A negative discriminant means there are no real solutions for
             // t, so the ray does not intersect the sphere.
@@ -71,13 +71,14 @@ impl Hit for Sphere {
             }
         };
         let hit_point = ray.at_time(time);
-        let normal = (hit_point - self.center) / self.radius; // unit normal
-    
-        dbg!(&normal);
+        let out_normal = (hit_point - self.center) / self.radius; // unit normal
+        let (face, normal) = hit::face_normal(ray, out_normal);
+
         Some(HitInfo {
             hit_point,
             normal,
             time,
+            face,
         })
     }
 }
