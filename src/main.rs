@@ -24,7 +24,7 @@ fn to_color(v: Vec3) -> Rgb<u8> {
 /// Returns the pixel color associated with a given ray.
 fn ray_color(ray: &Ray, world: impl Hit) -> Rgb<u8> {
     // Check for collisions with objects in the scene:
-    if let Some(info) = world.hit(ray, (0.0, f64::INFINITY)) {
+    if let Some(info) = world.hit(ray, &(0.0, f64::INFINITY).into()) {
         // Scale the unit normal and convert it into a color:
         let normal_scaled = 0.5 * (info.normal + Vec3([1.0, 1.0, 1.0]));
         let normal_color = to_color(normal_scaled);
@@ -75,9 +75,10 @@ fn main() {
     let first_pixel = viewport_origin + 0.5 * (step_u + step_v);
 
     // Construct the list of objects in the scene.
-    let mut world = vec![];
-    world.push(Sphere::new(Vec3([5.0, 2.5, -50.0]), 20.0));
-    world.push(Sphere::new(Vec3([-3.0, -1.0, -7.0]), 2.0));
+    let world = vec![
+        Sphere::new(Vec3([5.0, 2.5, -50.0]), 20.0),
+        Sphere::new(Vec3([-3.0, -1.0, -7.0]), 2.0),
+    ];
 
     let mut img = RgbImage::new(IMAGE_WIDTH, IMAGE_HEIGHT);
 

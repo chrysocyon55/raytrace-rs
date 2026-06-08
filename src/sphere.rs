@@ -1,6 +1,6 @@
 //! The sphere collider.
 
-use crate::hit::{self, Hit, HitInfo};
+use crate::hit::{self, Hit, HitInfo, Interval};
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
@@ -22,7 +22,7 @@ impl Sphere {
 }
 
 impl Hit for Sphere {
-    fn hit(&self, ray: &Ray, time_interval: (f64, f64)) -> Option<HitInfo> {
+    fn hit(&self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo> {
         // A sphere is a set of vectors P that are all a distance of r away from
         // the center C. We can express this using a dot product:
         //      (C - P) . (C - P) = r^2
@@ -57,13 +57,12 @@ impl Hit for Sphere {
         let discr_root = discriminant.sqrt();
         // Compute the intersection times and check whether they are within
         // the provided interval, starting with the nearer point:
-        let (start, end) = time_interval;
         let time_near = (h - discr_root) / a;
-        let time = if time_near >= start && time_near <= end {
+        let time = if ray_time.contains_exclusive(time_near) {
             time_near
         } else {
             let time_far = (h + discr_root) / a;
-            if time_far >= start && time_far <= end {
+            if ray_time.contains_exclusive(time_far) {
                 time_far
             } else {
                 // Neither collision time is within the interval.

@@ -39,6 +39,69 @@ pub fn face_normal(ray: &Ray, outward_normal: Vec3) -> (Face, Vec3) {
     }
 }
 
+/// An interval of time.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Interval {
+    pub start: f64,
+    pub end: f64,
+}
+
+impl Interval {
+    /// Constructs a new empty interval.
+    pub const fn empty() -> Self {
+        Self {
+            start: f64::INFINITY,
+            end: f64::NEG_INFINITY,
+        }
+    }
+
+    /// Constructs a new interval that contains all times.
+    pub const fn universal() -> Self {
+        Self {
+            start: f64::NEG_INFINITY,
+            end: f64::INFINITY,
+        }
+    }
+
+    /// Returns the size of this interval.
+    pub const fn size(&self) -> f64 {
+        0.0_f64.min(self.end - self.start)
+    }
+
+    // Determines whether the given time is part of this interval. including
+    // the bounds.
+    pub const fn contains_inclusive(&self, t: f64) -> bool {
+        self.start <= t && t <= self.end
+    }
+
+    // Determines whether the given time is part of this interval, excluding
+    // the bounds.
+    pub const fn contains_exclusive(&self, t: f64) -> bool {
+        self.start < t && t < self.end
+    }
+}
+
+impl Default for Interval {
+    fn default() -> Self {
+        Self::empty()
+    }
+}
+
+impl From<(f64, f64)> for Interval {
+    fn from(value: (f64, f64)) -> Self {
+        Self {
+            start: value.0,
+            end: value.1,
+        }
+    }
+}
+
+impl From<Interval> for (f64, f64) {
+    fn from(value: Interval) -> Self {
+        (value.start, value.end)
+    }
+}
+
 /// Objects that can interact with ("hit") light rays.
 pub trait Hit {
     /// Determines whether a ray collides with this object in the given time
@@ -47,7 +110,7 @@ pub trait Hit {
     /// If a collision occurs, returns `Some` containing information about
     /// where and when the collision occurs. Otherwise, if the ray does not
     /// collide with the object, returns `None`.
-    fn hit(&self, ray: &Ray, time_interval: (f64, f64)) -> Option<HitInfo>;
+    fn hit(&self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo>;
 }
 
 // A slice of objects that are `Hit` is also `Hit`.
@@ -55,16 +118,18 @@ impl<T> Hit for &[T]
 where
     T: Hit,
 {
-    fn hit(&self, ray: &Ray, time_interval: (f64, f64)) -> Option<HitInfo> {
+    fn hit(&self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo> {
         // Find the nearest valid collision with any of the objects in this
         // slice:
-        let (start_time, mut curr_end_time) = time_interval;
+        let start = ray_time.start;
+        let mut curr_end = ray_time.end;
         let mut soonest_hit = None;
         for obj in self.iter() {
-            if let Some(info) = obj.hit(ray, (start_time, curr_end_time)) {
+            let curr_interval = Interval::from((start, curr_end));
+            if let Some(info) = obj.hit(ray, &curr_interval) {
                 soonest_hit = Some(info);
                 // Only consider collisions that happen sooner than this one.
-                curr_end_time = info.time;
+                curr_end = info.time;
             }
         }
         soonest_hit
