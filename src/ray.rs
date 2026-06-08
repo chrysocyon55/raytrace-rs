@@ -15,7 +15,7 @@ impl Ray {
     pub const fn new(origin: Vec3, direction: Vec3) -> Self {
         Self { origin, direction }
     }
-    
+
     /// Computes the location of this ray at the given time.
     pub fn at_time(&self, time: f64) -> Vec3 {
         self.origin + time * self.direction
