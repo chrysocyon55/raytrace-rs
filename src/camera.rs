@@ -8,6 +8,9 @@ use crate::vec3::Vec3;
 
 use image::{Rgb, RgbImage};
 
+/// A `Vec3` used to store real-valued color data.
+pub type ColorVec3 = Vec3;
+
 /// Camera properties used to construct a camera.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CameraParams {
@@ -21,6 +24,11 @@ pub struct CameraParams {
     pub viewport_height: f64,
     /// The distance from the camera to the viewport in world units.
     pub focal_length: f64,
+    /// The minimum number of samples to perform per pixel.
+    /// Samples are taken as an evenly-spaced grid of N by N points, so the
+    /// actual number of samples per pixel will be the smallest square number
+    /// that is greater or equal to this minimum.
+    pub min_samples: usize,
 }
 
 /// Default camera parameters.
@@ -30,6 +38,7 @@ static DEFAULT_PARAMS: CameraParams = CameraParams {
     position: Vec3::new(),
     viewport_height: 2.0,
     focal_length: 1.0,
+    min_samples: 1,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -40,12 +49,14 @@ pub struct Camera {
     image_height: u32,
     /// The camera's position in world units.
     position: Vec3,
-    /// The center of the top-left viewport pixel in world units.
-    first_pixel: Vec3,
-    /// The horizontal displacement between viewport pixels.
+    /// The top-left corner of the viewport, in world units.
+    viewport_origin: Vec3,
+    /// The horizontal displacement between viewport pixels, in world units.
     step_u: Vec3,
-    /// The vertical displacement between viewport pixels.
+    /// The vertical displacement between viewport pixels, in world units.
     step_v: Vec3,
+    /// The side length of the square sample grid, in samples.
+    samples_per_dir: usize,
 }
 
 impl Camera {
@@ -62,6 +73,7 @@ impl Camera {
             position,
             viewport_height,
             focal_length,
+            min_samples,
         } = params;
 
         let image_height = (image_width as f64 / aspect_ratio) as u32;
@@ -70,7 +82,7 @@ impl Camera {
         // Spacial coordinates: +X is right, +Y is up, +Z points out of the screen.
         // Viewport coordinates: +U is right, +V is down.
 
-        // Create vectors for the axes of the viewport in terms of spacial
+        // Create vectors for the axes of the viewport in terms of world
         // coordinates.
         let viewport_u: Vec3 = Vec3([viewport_width, 0.0, 0.0]);
         let viewport_v: Vec3 = Vec3([0.0, -viewport_height, 0.0]);
@@ -81,15 +93,17 @@ impl Camera {
         // first pixel.
         let viewport_depth = Vec3([0.0, 0.0, -focal_length]);
         let viewport_origin = position + viewport_depth - (0.5 * viewport_u) - (0.5 * viewport_v);
-        let first_pixel = viewport_origin + 0.5 * (step_u + step_v);
+
+        let samples_per_dir = (min_samples + 1).isqrt();
 
         Self {
             image_width,
             image_height,
             position,
-            first_pixel,
+            viewport_origin,
             step_u,
             step_v,
+            samples_per_dir,
         }
     }
 
@@ -98,17 +112,36 @@ impl Camera {
     pub fn render(&self, world: &impl Hit, path: impl AsRef<Path>) {
         let mut img = RgbImage::new(self.image_width, self.image_height);
 
-        for row in 0..self.image_height {
-            for col in 0..self.image_width {
-                // Construct a ray travelling from the camera through the center
-                // of the current pixel:
-                let pixel_center =
-                    self.first_pixel + (self.step_u * col as f64) + (self.step_v * row as f64);
-                let ray_direction = pixel_center - self.position;
-                let ray = Ray::new(pixel_center, ray_direction);
-                // Compute the ray's color and write it to the image buffer:
-                let px_color = ray_color(&ray, world);
-                img.put_pixel(col, row, px_color);
+        let sample_step_u = self.step_u / (self.samples_per_dir as f64);
+        let sample_step_v = self.step_v / (self.samples_per_dir as f64);
+
+        let num_samples = self.samples_per_dir * self.samples_per_dir;
+
+        // Iterate over each pixel in the image:
+        for px_row in 0..self.image_height {
+            let first_sample_v_offset = (self.step_v * px_row as f64) + (0.5 * sample_step_v);
+            for px_col in 0..self.image_width {
+                let mut px_total_color = ColorVec3::new();
+                let first_sample_u_offset = (self.step_u * px_col as f64) + (0.5 * sample_step_u);
+                let first_sample = first_sample_v_offset + first_sample_u_offset;
+                // Iterate over each sample within the current pixel:
+                for sample_row in 0..self.samples_per_dir {
+                    let sample_v_offset = sample_row as f64 * sample_step_v;
+                    for sample_col in 0..self.samples_per_dir {
+                        let sample_u_offset = sample_col as f64 * sample_step_u;
+                        let sample = first_sample + sample_v_offset + sample_u_offset;
+                        // Send a ray from the camera through this sample:
+                        let ray_direction = sample - self.position;
+                        let ray = Ray::new(sample, ray_direction);
+                        // Get the color of the ray and add it to the total
+                        // color vector for this pixel so far.
+                        px_total_color += ray_color(&ray, world);
+                    }
+                }
+                // Compute the average color of this pixel's samples and write
+                // it to the image buffer:
+                let px_average_color = px_total_color / num_samples as f64;
+                img.put_pixel(px_col, px_row, to_rgb(px_average_color));
             }
         }
 
@@ -116,14 +149,12 @@ impl Camera {
     }
 }
 
-/// Returns the pixel color associated with a given ray.
-fn ray_color(ray: &Ray, world: &impl Hit) -> Rgb<u8> {
+/// Returns the pixel color associated with a given ray as a color vector.
+fn ray_color(ray: &Ray, world: &impl Hit) -> ColorVec3 {
     // Check for collisions with objects in the scene:
     if let Some(info) = world.hit(ray, &(0.0, f64::INFINITY).into()) {
-        // Scale the unit normal and convert it into a color:
-        let normal_scaled = 0.5 * (info.normal + Vec3([1.0, 1.0, 1.0]));
-        let normal_color = to_color(normal_scaled);
-        return normal_color;
+        // Scale the unit normal's components to the range 0.0-1.0]
+        return 0.5 * (info.normal + Vec3([1.0, 1.0, 1.0]));
     }
 
     // If the ray doesn't hit any objects, draw a gradient background.
@@ -132,15 +163,13 @@ fn ray_color(ray: &Ray, world: &impl Hit) -> Rgb<u8> {
     const WHITE: Vec3 = Vec3([1.0, 1.0, 1.0]);
     const BLUE: Vec3 = Vec3([0.5, 0.7, 1.0]);
     let blend = 0.5 * (unit_dir.y() + 1.0);
-    let bg_color_vector = (1.0 - blend) * WHITE + blend * BLUE;
-    to_color(bg_color_vector)
+    (1.0 - blend) * WHITE + blend * BLUE
 }
 
-/// Converts a vector representing a color into an RGB value.
+/// Converts a real color vector into an RGB value.
 ///
-/// Assumes that the provided vector's components are each in the interval
-/// [0.0, 1.0]. If not, the resulting color's components will still be clamped
-/// to within [0, 255], but it may result in odd visuals.
-fn to_color(v: Vec3) -> Rgb<u8> {
+/// The vector's components are intended to be within the interval [0.0, 1.0],
+/// and will be clamped otherwise.
+fn to_rgb(v: ColorVec3) -> Rgb<u8> {
     Rgb(v.0.map(|component| (component * 255.0) as u8))
 }
