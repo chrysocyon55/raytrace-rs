@@ -296,4 +296,19 @@ mod tests {
         v /= 2.0;
         assert_eq!(v, Vec3([-2.0, -11.0, 3.0]));
     }
+
+    #[test]
+    fn random_vector_sampling() {
+        for _ in 0..10_000 {
+            let v = Vec3::random_unit();
+            assert!((v.length() - 1.0).abs() < 1.0e-10);
+        }
+
+        let normal = Vec3([1.0, -1.0, 0.0]);
+        for _ in 0..10_000 {
+            let v = Vec3::random_hemisphere_unit(&normal);
+            assert!((v.length() - 1.0).abs() < 1.0e-10);
+            assert!(v.dot(&normal) >= 0.0);
+        }
+    }
 }
