@@ -2,6 +2,8 @@
 
 use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssign};
 
+use rand::{self, RngExt};
+
 /// A three-dimensional real-valued vector.
 #[repr(transparent)]
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -62,6 +64,42 @@ impl Vec3 {
     /// Produces the unit vector with the same direction as this vector.
     pub fn normalized(&self) -> Self {
         *self / self.length()
+    }
+
+    /// Produces a vector whose components are in the range [0.0, 1.0).
+    pub fn random() -> Self {
+        let mut rng = rand::rng();
+        Self([rng.random(); _])
+    }
+
+    /// Produces a vector whose components are in the range [`min`, `max`).
+    pub fn random_range(min: f64, max: f64) -> Self {
+        let mut rng = rand::rng();
+        Self([rng.random_range(min..max); _])
+    }
+
+    /// Produces a unit vector with a random direction.
+    pub fn random_unit() -> Self {
+        loop {
+            // Sample random vectors with components in the interval
+            // [-1.0, 1.0) until one lies within the unit sphere, rejecting
+            // other vectors. This is to avoid biasing towards the corners of
+            // the cube-shaped state space, with vertices (+/-1, +/-1).
+            // We also reject vectors whose lengths are extremely small, to
+            // avoid errors due to floating point rounding.
+            let v = Self::random_range(-1.0, 1.0);
+            let v_len_squared = v.square_length();
+            if (1.0e-160..=1.0).contains(&v_len_squared) {
+                return v / v_len_squared.sqrt();
+            }
+        }
+    }
+
+    /// Produces a unit vector with a random direction, constrained to the
+    /// hemisphere surrounding the given normal vector.
+    pub fn random_hemisphere_unit(normal: &Vec3) -> Self {
+        let v = Self::random_unit();
+        if v.dot(normal) >= 0.0 { v } else { -v }
     }
 }
 
@@ -197,6 +235,9 @@ impl DivAssign<f64> for Vec3 {
         }
     }
 }
+
+/// A `Vec3` used to store a real-valued color instead of a position.
+pub type ColorVec3 = Vec3;
 
 #[cfg(test)]
 mod tests {

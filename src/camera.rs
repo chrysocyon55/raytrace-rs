@@ -4,12 +4,9 @@ use std::path::Path;
 
 use crate::hit::Hit;
 use crate::ray::Ray;
-use crate::vec3::Vec3;
+use crate::vec3::{ColorVec3, Vec3};
 
 use image::{Rgb, RgbImage};
-
-/// A `Vec3` used to store real-valued color data.
-pub type ColorVec3 = Vec3;
 
 /// Camera properties used to construct a camera.
 #[derive(Debug, Clone, Copy, PartialEq)]
