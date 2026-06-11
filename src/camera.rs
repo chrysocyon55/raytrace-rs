@@ -172,13 +172,19 @@ fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
     }
 
     // Check for collisions with objects in the scene:
-    if let Some(collision) = world.hit(ray, &(0.0, f64::INFINITY).into()) {
+    // We ignore collisions that happen almost immediately, since they are
+    // likely rays incorrectly intersecting with the surfaces they just
+    // bounced off of, due to floating point imprecision. This prevents
+    // "shadow acne", where such rays would produce isolated dark pixels due
+    // to repeated in-place collisions.
+    if let Some(collision) = world.hit(ray, &(0.001, f64::INFINITY).into()) {
         // For now, all objects use the same 50% diffuse material.
+        // Diffuse materials scatter rays randomly off their surfaces:
         let bounce_dir = Vec3::random_hemisphere_unit(&collision.normal);
         let bounce_ray = Ray::new(collision.hit_point, bounce_dir);
         return 0.5 * ray_color(&bounce_ray, depth - 1, world);
 
-        // Normals visualizer, for debugging
+        // Normals visualizer, for debugging.
         // let scaled_normal = 0.5 * (collision.normal + Vec3([1.0; _]));
         // return scaled_normal;
     }
