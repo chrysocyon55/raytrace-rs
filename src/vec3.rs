@@ -69,13 +69,17 @@ impl Vec3 {
     /// Produces a vector whose components are in the range [0.0, 1.0).
     pub fn random() -> Self {
         let mut rng = rand::rng();
-        Self([rng.random(); _])
+        Self(rng.random())
     }
 
     /// Produces a vector whose components are in the range [`min`, `max`).
     pub fn random_range(min: f64, max: f64) -> Self {
         let mut rng = rand::rng();
-        Self([rng.random_range(min..max); _])
+        Self([
+            rng.random_range(min..max),
+            rng.random_range(min..max),
+            rng.random_range(min..max),
+        ])
     }
 
     /// Produces a unit vector with a random direction.
