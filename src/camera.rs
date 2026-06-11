@@ -141,7 +141,8 @@ impl Camera {
                 }
             }
             let avg_color = total_color / samples_per_px as f64;
-            to_rgb(avg_color)
+            let corrected_color = linear_to_gamma(avg_color);
+            to_rgb(corrected_color)
         };
 
         println!("Starting render.");
@@ -164,7 +165,7 @@ impl Camera {
 
 /// Returns the pixel color associated with a given ray as a color vector.
 fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
-    if depth <= 0 {
+    if depth == 0 {
         // If the maximum recursion depth has been reached, the ray "fizzles"
         // and returns pure black.
         const BLACK: Vec3 = Vec3([0.0; _]);
@@ -178,24 +179,42 @@ fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
     // "shadow acne", where such rays would produce isolated dark pixels due
     // to repeated in-place collisions.
     if let Some(collision) = world.hit(ray, &(0.001, f64::INFINITY).into()) {
-        // For now, all objects use the same 50% diffuse material.
-        // Diffuse materials scatter rays randomly off their surfaces:
-        let bounce_dir = Vec3::random_hemisphere_unit(&collision.normal);
+        // For now, all objects use the same 40% diffuse material.
+        // Diffuse materials scatter rays using a Lambertian distribution,
+        // where they are most likely to be bounced near the direction of the
+        // surface normal.
+        let bounce_dir = 1.01 * collision.normal + Vec3::random_unit();
         let bounce_ray = Ray::new(collision.hit_point, bounce_dir);
-        return 0.5 * ray_color(&bounce_ray, depth - 1, world);
+        return 0.4 * ray_color(&bounce_ray, depth - 1, world);
 
         // Normals visualizer, for debugging.
         // let scaled_normal = 0.5 * (collision.normal + Vec3([1.0; _]));
         // return scaled_normal;
     }
 
-    // If the ray doesn't hit any objects, draw a gradient background.
+    // If the ray doesn't hit any objects, draw the sky using a gradient.
     // Lerp from white to blue as the y component of the ray increases:
     let unit_dir = ray.direction.normalized();
     const SKY_WHITE: Vec3 = Vec3([1.0, 1.0, 1.0]);
     const SKY_BLUE: Vec3 = Vec3([0.5, 0.7, 1.0]);
     let blend = 0.5 * (unit_dir.y() + 1.0);
     (1.0 - blend) * SKY_WHITE + blend * SKY_BLUE
+}
+
+/// Performs gamma correction on a color vector.
+///
+/// Apparent brightness is not linear: a linear average of black and white
+/// appears much darker than a neutral grey. This function compensates for
+/// this effect, producing a more natural-looking transition from light to
+/// dark.
+fn linear_to_gamma(v: ColorVec3) -> ColorVec3 {
+    Vec3(v.0.map(|component| {
+        if component > 0.0 {
+            component.sqrt()
+        } else {
+            0.0
+        }
+    }))
 }
 
 /// Converts a real color vector into an RGB value.
