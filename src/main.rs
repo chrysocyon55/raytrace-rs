@@ -14,8 +14,8 @@ fn main() {
     let camera = Camera::new();
 
     let world = vec![
-        Sphere::new(Vec3([5.0, 2.5, -50.0]), 20.0),
-        Sphere::new(Vec3([-3.0, -1.0, -7.0]), 2.0),
+        Sphere::new(Vec3([0.0, 0.0, -1.0]), 0.5),
+        Sphere::new(Vec3([0.0, -100.5, -1.0]), 100.0),
     ];
 
     camera.render(&world.as_slice(), "./output.png");

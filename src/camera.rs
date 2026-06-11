@@ -1,5 +1,6 @@
 //! Cameras responsible for casting rays and rendering images.
 
+use std::io::{self, Write};
 use std::path::Path;
 
 use crate::hit::Hit;
@@ -26,6 +27,8 @@ pub struct CameraParams {
     /// actual number of samples per pixel will be the smallest square number
     /// that is greater or equal to this minimum.
     pub min_samples: usize,
+    /// Maximum recursion depth for bounce light.
+    pub max_depth: usize,
 }
 
 /// Default camera parameters.
@@ -36,6 +39,7 @@ static DEFAULT_PARAMS: CameraParams = CameraParams {
     viewport_height: 2.0,
     focal_length: 1.0,
     min_samples: 16,
+    max_depth: 10,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -54,6 +58,8 @@ pub struct Camera {
     step_v: Vec3,
     /// The side length of the square sample grid, in samples.
     samples_per_dir: usize,
+    /// Maximum recursion depth for bounce light.
+    max_depth: usize,
 }
 
 impl Camera {
@@ -71,6 +77,7 @@ impl Camera {
             viewport_height,
             focal_length,
             min_samples,
+            max_depth,
         } = params;
         assert!(aspect_ratio > 0.0, "aspect ratio must be positive");
         assert!(viewport_height > 0.0, "viewport height must be positive");
@@ -104,6 +111,7 @@ impl Camera {
             step_u,
             step_v,
             samples_per_dir,
+            max_depth,
         }
     }
 
@@ -129,40 +137,59 @@ impl Camera {
                     let samp_position = px_topleft + samp_offset_v + samp_offset_u;
                     let ray_direction = samp_position - self.position;
                     let ray = Ray::new(self.position, ray_direction);
-                    total_color += ray_color(&ray, world);
+                    total_color += ray_color(&ray, self.max_depth, world);
                 }
             }
             let avg_color = total_color / samples_per_px as f64;
             to_rgb(avg_color)
         };
 
+        println!("Starting render.");
         let mut img = RgbImage::new(self.image_width, self.image_height);
         // Iterate over each pixel in the image and compute its color:
         for row in 0..self.image_height {
+            print!("Rendering scanline {}/{}...\r", row + 1, self.image_height);
+            io::stdout().flush().unwrap();
             for col in 0..self.image_width {
                 let color = pixel_color(row, col);
                 img.put_pixel(col, row, color);
             }
         }
-        img.save(path).unwrap();
+        img.save(&path).unwrap();
+        // Long blank space to overwrite the "rendering scanline" text above
+        println!("Render complete.                         ");
+        println!("Saved output image as {}", &path.as_ref().display());
     }
 }
 
 /// Returns the pixel color associated with a given ray as a color vector.
-fn ray_color(ray: &Ray, world: &impl Hit) -> ColorVec3 {
+fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
+    if depth <= 0 {
+        // If the maximum recursion depth has been reached, the ray "fizzles"
+        // and returns pure black.
+        const BLACK: Vec3 = Vec3([0.0; _]);
+        return BLACK;
+    }
+
     // Check for collisions with objects in the scene:
-    if let Some(info) = world.hit(ray, &(0.0, f64::INFINITY).into()) {
-        // Scale the unit normal's components to the range 0.0-1.0].
-        return 0.5 * (info.normal + Vec3([1.0, 1.0, 1.0]));
+    if let Some(collision) = world.hit(ray, &(0.0, f64::INFINITY).into()) {
+        // For now, all objects use the same 50% diffuse material.
+        let bounce_dir = Vec3::random_hemisphere_unit(&collision.normal);
+        let bounce_ray = Ray::new(collision.hit_point, bounce_dir);
+        return 0.5 * ray_color(&bounce_ray, depth - 1, world);
+
+        // Normals visualizer, for debugging
+        // let scaled_normal = 0.5 * (collision.normal + Vec3([1.0; _]));
+        // return scaled_normal;
     }
 
     // If the ray doesn't hit any objects, draw a gradient background.
     // Lerp from white to blue as the y component of the ray increases:
     let unit_dir = ray.direction.normalized();
-    const WHITE: Vec3 = Vec3([1.0, 1.0, 1.0]);
-    const BLUE: Vec3 = Vec3([0.5, 0.7, 1.0]);
+    const SKY_WHITE: Vec3 = Vec3([1.0, 1.0, 1.0]);
+    const SKY_BLUE: Vec3 = Vec3([0.5, 0.7, 1.0]);
     let blend = 0.5 * (unit_dir.y() + 1.0);
-    (1.0 - blend) * WHITE + blend * BLUE
+    (1.0 - blend) * SKY_WHITE + blend * SKY_BLUE
 }
 
 /// Converts a real color vector into an RGB value.
