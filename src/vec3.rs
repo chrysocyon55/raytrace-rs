@@ -61,6 +61,24 @@ impl Vec3 {
         ])
     }
 
+    /// Computes the reflection of this vector from the surface with the given
+    /// normal vector.
+    ///
+    /// Assumes that `unit_normal` is a unit normal vector.
+    pub fn reflected_over(&self, unit_normal: Self) -> Self {
+        // Compute the component of this vector that is parallel to the
+        // normal, using the dot product (project v onto u).
+        // This will be negative, since the incident vector and the normal are
+        // assumed to point in opposite directions.
+        let parallel_comp_len = self.dot(&unit_normal);
+        // Invert the component parallel to the normal to perform the
+        // reflection. This is done by subtracting double the parallel
+        // component from the original vector: once to cancel its existing
+        // inwards component, and once to give it an outwards component of
+        // equal magnitude.
+        *self - ((2.0 * parallel_comp_len) * unit_normal)
+    }
+
     /// Produces the unit vector with the same direction as this vector.
     pub fn normalized(&self) -> Self {
         *self / self.length()

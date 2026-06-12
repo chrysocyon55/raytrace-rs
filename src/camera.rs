@@ -33,13 +33,13 @@ pub struct CameraParams {
 
 /// Default camera parameters.
 static DEFAULT_PARAMS: CameraParams = CameraParams {
-    image_width: 800,
+    image_width: 1920,
     aspect_ratio: 16.0 / 9.0,
     position: Vec3::new(),
     viewport_height: 2.0,
     focal_length: 1.0,
-    min_samples: 16,
-    max_depth: 10,
+    min_samples: 36,
+    max_depth: 25,
 };
 
 #[derive(Debug, Clone, Copy, PartialEq)]

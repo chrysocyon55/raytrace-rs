@@ -19,18 +19,17 @@ pub trait Material {
 
 /// A Lambertian diffuse material that either absorbs or randomly scatters
 /// light.
-///
-/// The `albedo` is the color of the surface, and `scatter_chance` is the
-/// probability that light rays are scattered in a random direction instead of
-/// being absorbed.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Lambertian {
+    /// The color of the surface.
     albedo: ColorVec3,
+    /// The probability that light rays are scattered in a random direction.
+    /// Rays that aren't scattered will be absorbed by the surface.
     scatter_chance: f64,
 }
 
 impl Lambertian {
-    /// Construct a new Lambertian material with a given albedo and scatter
+    /// Constructs a new Lambertian material with a given albedo and scatter
     /// chance.
     ///
     /// Panics if `scatter_chance` is not in the interval [0.0, 1.0].
@@ -62,5 +61,27 @@ impl Material for Lambertian {
         }
         let scattered_ray = Ray::new(hit_info.hit_point, scatter_dir);
         Some((self.albedo, scattered_ray))
+    }
+}
+
+/// A metal surface that reflects light.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Metal {
+    // The color of the surface.
+    albedo: ColorVec3,
+}
+
+impl Metal {
+    /// Constructs a metal material with a given albedo.
+    pub const fn new(albedo: ColorVec3) -> Self {
+        Self { albedo }
+    }
+}
+
+impl Material for Metal {
+    fn scatter(&self, ray: &Ray, hit_info: &HitInfo) -> Option<(ColorVec3, Ray)> {
+        let reflected = ray.direction.reflected_over(hit_info.normal);
+        let reflected_ray = Ray::new(hit_info.hit_point, reflected);
+        Some((self.albedo, reflected_ray))
     }
 }
