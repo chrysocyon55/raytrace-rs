@@ -3,11 +3,11 @@
 use std::io::{self, Write};
 use std::path::Path;
 
+use image::{Rgb, RgbImage};
+
 use crate::hit::Hit;
 use crate::ray::Ray;
 use crate::vec3::{ColorVec3, Vec3};
-
-use image::{Rgb, RgbImage};
 
 /// Camera properties used to construct a camera.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -179,17 +179,14 @@ fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
     // "shadow acne", where such rays would produce isolated dark pixels due
     // to repeated in-place collisions.
     if let Some(collision) = world.hit(ray, &(0.001, f64::INFINITY).into()) {
-        // For now, all objects use the same 40% diffuse material.
-        // Diffuse materials scatter rays using a Lambertian distribution,
-        // where they are most likely to be bounced near the direction of the
-        // surface normal.
-        let bounce_dir = 1.01 * collision.normal + Vec3::random_unit();
-        let bounce_ray = Ray::new(collision.hit_point, bounce_dir);
-        return 0.4 * ray_color(&bounce_ray, depth - 1, world);
-
-        // Normals visualizer, for debugging.
-        // let scaled_normal = 0.5 * (collision.normal + Vec3([1.0; _]));
-        // return scaled_normal;
+        // Determine whether the ray is absorbed or reflected:
+        if let Some((color, scattered_ray)) = collision.mat.scatter(ray, &collision) {
+            return color * ray_color(&scattered_ray, depth - 1, world);
+        } else {
+            // Absorbed rays cause the area to appear perfectly black.
+            const BLACK: ColorVec3 = Vec3([0.0; _]);
+            return BLACK;
+        }
     }
 
     // If the ray doesn't hit any objects, draw the sky using a gradient.

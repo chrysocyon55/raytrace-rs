@@ -105,6 +105,16 @@ impl Vec3 {
         let v = Self::random_unit();
         if v.dot(normal) >= 0.0 { v } else { -v }
     }
+
+    /// Determines whether this vector is very close to the zero vector.
+    ///
+    /// This is useful for preventing undesirable behavior where vectors with a
+    /// very small (or zero) length could cause rounding errors or division by
+    /// zero.
+    pub fn is_near_zero(&self) -> bool {
+        const EPSILON: f64 = 1e-8;
+        self.0.into_iter().all(|component| component < EPSILON)
+    }
 }
 
 impl Default for Vec3 {
@@ -194,6 +204,26 @@ impl SubAssign for Vec3 {
         *components[0] -= rhs.0[0];
         *components[1] -= rhs.0[1];
         *components[2] -= rhs.0[2];
+    }
+}
+
+impl Mul for Vec3 {
+    type Output = Self;
+
+    /// Computes the Hadamard product, which is elementwise multiplication of
+    /// the vectors.
+    fn mul(self, rhs: Self) -> Self::Output {
+        Self([
+            self.0[0] * rhs.0[0],
+            self.0[1] * rhs.0[1],
+            self.0[2] * rhs.0[2],
+        ])
+    }
+}
+
+impl MulAssign for Vec3 {
+    fn mul_assign(&mut self, rhs: Self) {
+        *self = *self * rhs;
     }
 }
 

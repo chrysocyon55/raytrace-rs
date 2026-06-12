@@ -1,5 +1,9 @@
 //! Interface for objects that interact with light rays.
 
+use std::fmt::{self, Debug};
+use std::rc::Rc;
+
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
@@ -11,7 +15,7 @@ pub enum Face {
 }
 
 /// A description of a ray's collision with an object.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone)]
 pub struct HitInfo {
     /// The point at which the ray collided with the object.
     pub hit_point: Vec3,
@@ -23,6 +27,19 @@ pub struct HitInfo {
     pub time: f64,
     /// Whether the ray hit the front face of the object.
     pub face: Face,
+    /// The material of the object hit by the ray.
+    pub mat: Rc<dyn Material>,
+}
+
+impl Debug for HitInfo {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("HitInfo")
+            .field("hit_point", &self.hit_point)
+            .field("normal", &self.normal)
+            .field("time", &self.time)
+            .field("face", &self.face)
+            .finish_non_exhaustive()
+    }
 }
 
 /// Determines whether the ray is hitting the front or back face of an object,
@@ -127,9 +144,9 @@ where
         for obj in self.iter() {
             let curr_interval = Interval::from((start, curr_end));
             if let Some(info) = obj.hit(ray, &curr_interval) {
-                soonest_hit = Some(info);
                 // Only consider collisions that happen sooner than this one.
                 curr_end = info.time;
+                soonest_hit = Some(info);
             }
         }
         soonest_hit

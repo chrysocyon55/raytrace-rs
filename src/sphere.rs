@@ -1,23 +1,44 @@
 //! The sphere collider.
 
+use std::fmt::Debug;
+use std::rc::Rc;
+
 use crate::hit::{self, Hit, HitInfo, Interval};
+use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
 /// A spherical collider.
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Clone)]
 pub struct Sphere {
     center: Vec3,
     radius: f64,
+    material: Rc<dyn Material>,
 }
 
 impl Sphere {
     /// Constructs a new sphere at a given center with a given radius.
     ///
     /// Panics if `radius` is less than or equal to `0.0`.
-    pub const fn new(center: Vec3, radius: f64) -> Self {
+    pub fn new<M>(center: Vec3, radius: f64, material: M) -> Self
+    where
+        M: Material + 'static,
+    {
         assert!(radius > 0.0);
-        Self { center, radius }
+        Self {
+            center,
+            radius,
+            material: Rc::new(material),
+        }
+    }
+}
+
+impl Debug for Sphere {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Sphere")
+            .field("center", &self.center)
+            .field("radius", &self.radius)
+            .finish_non_exhaustive()
     }
 }
 
@@ -78,6 +99,7 @@ impl Hit for Sphere {
             normal,
             time,
             face,
+            mat: self.material.clone(),
         })
     }
 }
