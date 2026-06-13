@@ -64,24 +64,43 @@ impl Material for Lambertian {
     }
 }
 
-/// A metal surface that reflects light.
+/// A metallic material that reflects light.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Metal {
     // The color of the surface.
     albedo: ColorVec3,
+    // Fuzz factor. Smaller values result in more perfect reflections.
+    fuzz: f64,
 }
 
 impl Metal {
-    /// Constructs a metal material with a given albedo.
-    pub const fn new(albedo: ColorVec3) -> Self {
-        Self { albedo }
+    /// Constructs a metal material with a given albedo and fuzz factor.
+    ///
+    /// The fuzz factor is a value in the range [0.0, 1.0], with 0.0 fuzz
+    /// resulting in perfect reflections, and larger values appearing more
+    /// matte.
+    ///
+    /// `albedo` is assumed to be a valid color vector.
+    /// Panics if `fuzz` is not in the range [0.0, 1.0].
+    pub const fn new(albedo: ColorVec3, fuzz: f64) -> Self {
+        assert!(fuzz >= 0.0 && fuzz <= 1.0);
+        Self { albedo, fuzz }
     }
 }
 
 impl Material for Metal {
     fn scatter(&self, ray: &Ray, hit_info: &HitInfo) -> Option<(ColorVec3, Ray)> {
+        // Reflect over the surface normal.
         let reflected = ray.direction.reflected_over(hit_info.normal);
-        let reflected_ray = Ray::new(hit_info.hit_point, reflected);
+        // Add a random offset to the reflected ray depending on the fuzz factor.
+        let fuzzed = reflected.normalized() + (self.fuzz * Vec3::random_unit());
+        // For shallow-angle reflections on large surfaces, fuzzing could
+        // result in trajectories inside the surface. These are treated as
+        // being absorbed by the surface.
+        if fuzzed.dot(&hit_info.normal) < 0.0 {
+            return None;
+        }
+        let reflected_ray = Ray::new(hit_info.hit_point, fuzzed);
         Some((self.albedo, reflected_ray))
     }
 }

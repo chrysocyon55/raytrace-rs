@@ -18,8 +18,8 @@ fn main() {
     let matte_red = Lambertian::new(Vec3([0.95, 0.15, 0.05]), 0.8);
     let matte_green = Lambertian::new(Vec3([0.1, 0.9, 0.25]), 0.75);
 
-    let steel = Metal::new(Vec3([0.3, 0.3, 0.3]));
-    let gold = Metal::new(Vec3([0.9, 0.9, 0.4]));
+    let steel = Metal::new(Vec3([0.3, 0.3, 0.3]), 0.6);
+    let gold = Metal::new(Vec3([0.925, 0.875, 0.3]), 0.2);
 
     let world = vec![
         Sphere::new(Vec3([0.0, -201.5, -3.0]), 200.0, matte_green),
