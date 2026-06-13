@@ -180,7 +180,7 @@ fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
     // to repeated in-place collisions.
     if let Some(collision) = world.hit(ray, &(0.001, f64::INFINITY).into()) {
         // Determine whether the ray is absorbed or reflected:
-        if let Some((color, scattered_ray)) = collision.mat.scatter(ray, &collision) {
+        if let Some((color, scattered_ray)) = collision.material.scatter(ray, &collision) {
             return color * ray_color(&scattered_ray, depth - 1, world);
         } else {
             // Absorbed rays cause the area to appear perfectly black.

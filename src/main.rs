@@ -22,10 +22,10 @@ fn main() {
     let gold = Metal::new(Vec3([0.925, 0.875, 0.3]), 0.2);
 
     let world = vec![
-        Sphere::new(Vec3([0.0, -201.5, -3.0]), 200.0, matte_green),
-        Sphere::new(Vec3([0.0, -0.025, -3.2]), 1.5, matte_red),
-        Sphere::new(Vec3([-3.0, -0.05, -3.0]), 1.5, steel),
-        Sphere::new(Vec3([3.0, -0.05, -3.0]), 1.5, gold),
+        Sphere::new(Vec3([0.0, -201.5, -3.0]), 200.0, &matte_green),
+        Sphere::new(Vec3([0.0, -0.025, -3.2]), 1.5, &matte_red),
+        Sphere::new(Vec3([-3.0, -0.05, -3.0]), 1.5, &steel),
+        Sphere::new(Vec3([3.0, -0.05, -3.0]), 1.5, &gold),
     ];
 
     camera.render(&world.as_slice(), "./output.png");

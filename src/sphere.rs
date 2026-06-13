@@ -1,7 +1,6 @@
 //! The sphere collider.
 
 use std::fmt::Debug;
-use std::rc::Rc;
 
 use crate::hit::{self, Hit, HitInfo, Interval};
 use crate::material::Material;
@@ -9,31 +8,28 @@ use crate::ray::Ray;
 use crate::vec3::Vec3;
 
 /// A spherical collider.
-#[derive(Clone)]
-pub struct Sphere {
+pub struct Sphere<'mat> {
     center: Vec3,
     radius: f64,
-    material: Rc<dyn Material>,
+    material: &'mat dyn Material,
 }
 
-impl Sphere {
-    /// Constructs a new sphere at a given center with a given radius.
+impl<'mat> Sphere<'mat> {
+    /// Constructs a new sphere at a given center with a given radius, whose
+    /// surface is a given material.
     ///
     /// Panics if `radius` is less than or equal to `0.0`.
-    pub fn new<M>(center: Vec3, radius: f64, material: M) -> Self
-    where
-        M: Material + 'static,
-    {
+    pub fn new(center: Vec3, radius: f64, material: &'mat dyn Material) -> Self {
         assert!(radius > 0.0);
         Self {
             center,
             radius,
-            material: Rc::new(material),
+            material,
         }
     }
 }
 
-impl Debug for Sphere {
+impl Debug for Sphere<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Sphere")
             .field("center", &self.center)
@@ -42,8 +38,8 @@ impl Debug for Sphere {
     }
 }
 
-impl Hit for Sphere {
-    fn hit(&self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo> {
+impl<'mat> Hit for Sphere<'mat> {
+    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         // A sphere is a set of vectors P that are all a distance of r away from
         // the center C. We can express this using a dot product:
         //      (C - P) . (C - P) = r^2
@@ -99,7 +95,7 @@ impl Hit for Sphere {
             normal,
             time,
             face,
-            mat: self.material.clone(),
+            material: self.material,
         })
     }
 }

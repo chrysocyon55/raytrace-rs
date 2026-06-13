@@ -1,7 +1,6 @@
 //! Interface for objects that interact with light rays.
 
 use std::fmt::{self, Debug};
-use std::rc::Rc;
 
 use crate::material::Material;
 use crate::ray::Ray;
@@ -16,7 +15,7 @@ pub enum Face {
 
 /// A description of a ray's collision with an object.
 #[derive(Clone)]
-pub struct HitInfo {
+pub struct HitInfo<'mat> {
     /// The point at which the ray collided with the object.
     pub hit_point: Vec3,
     /// A normal vector to the object at the point of collision.
@@ -28,10 +27,10 @@ pub struct HitInfo {
     /// Whether the ray hit the front face of the object.
     pub face: Face,
     /// The material of the object hit by the ray.
-    pub mat: Rc<dyn Material>,
+    pub material: &'mat dyn Material,
 }
 
-impl Debug for HitInfo {
+impl Debug for HitInfo<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HitInfo")
             .field("hit_point", &self.hit_point)
@@ -127,7 +126,7 @@ pub trait Hit {
     /// If a collision occurs, returns `Some` containing information about
     /// where and when the collision occurs. Otherwise, if the ray does not
     /// collide with the object, returns `None`.
-    fn hit(&self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo>;
+    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>>;
 }
 
 // A slice of objects that are `Hit` is also `Hit`.
@@ -135,7 +134,7 @@ impl<T> Hit for &[T]
 where
     T: Hit,
 {
-    fn hit(&self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo> {
+    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         // Find the nearest valid collision with any of the objects in this
         // slice:
         let start = ray_time.start;
