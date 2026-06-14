@@ -163,6 +163,12 @@ impl Camera {
     }
 }
 
+impl Default for Camera {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Returns the pixel color associated with a given ray as a color vector.
 fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
     if depth == 0 {
@@ -220,10 +226,4 @@ fn linear_to_gamma(v: ColorVec3) -> ColorVec3 {
 /// and will be clamped otherwise.
 fn to_rgb(v: ColorVec3) -> Rgb<u8> {
     Rgb(v.0.map(|component| (component * 255.0) as u8))
-}
-
-impl Default for Camera {
-    fn default() -> Self {
-        Self::new()
-    }
 }
