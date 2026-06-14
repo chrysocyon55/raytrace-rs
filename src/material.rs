@@ -2,7 +2,7 @@
 
 use rand::{self, RngExt};
 
-use crate::hit::HitInfo;
+use crate::hit::{Face, HitInfo};
 use crate::ray::Ray;
 use crate::vec3::{ColorVec3, Vec3};
 
@@ -102,5 +102,68 @@ impl Material for Metal {
         }
         let reflected_ray = Ray::new(hit_info.hit_point, fuzzed);
         Some((self.albedo, reflected_ray))
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+/// Transparent dielectric materials that refract light.
+pub struct Dielectric {
+    /// This material's index of refraction, relative to the surrounding
+    /// medium.
+    refraction_index: f64,
+}
+
+impl Dielectric {
+    /// Constructs a dielectric material with a given relative index of
+    /// refraction.
+    ///
+    /// Panics if the refraction index is negative or zero.
+    pub const fn new(refraction_index: f64) -> Self {
+        assert!(refraction_index > 0.0);
+        Self { refraction_index }
+    }
+}
+
+impl Material for Dielectric {
+    fn scatter(&self, ray: &Ray, hit_info: &HitInfo) -> Option<(ColorVec3, Ray)> {
+        let refraction_ratio = if hit_info.face == Face::Front {
+            1.0 / self.refraction_index
+        } else {
+            self.refraction_index
+        };
+        let unit_dir = ray.direction.normalized();
+        // Not all angles result in refractions. According to Snell's law:
+        //  sin(theta') = (eta / eta') * sin(theta)
+        // If the refraction ratio is greater than 1.0, then when theta is
+        // close to 90 degrees, the right-hand side will be greater than 1.0,
+        // so there are no real solutions for theta'.
+        // What is means physically is that rays with large angles of incidence
+        // will reflect rather than refract.
+        // We can compute the sin of theta in terms of the cosine:
+        //  sin(theta)^2 + cos(theta)^2 = 1
+        //  sin(theta) = sqrt(1 - cos(theta)^2)
+        // Since both of our vectors are unit vectors:
+        //  -(r . u) = |r||u| * cos(theta)
+        //  -(r . u) = cos(theta)
+        let cos_theta = -(unit_dir.dot(&hit_info.normal));
+        let sin_theta = (1.0 - cos_theta * cos_theta).sqrt();
+        let must_reflect = refraction_ratio * sin_theta > 1.0;
+        // Additionally, even when rays can refract, some will reflect instead,
+        // with the chance of reflection increasing as the incident ray gets
+        // closer to being tangent to the surface.
+        // Using Christophe Schlick's approximation of glass reflectance:
+        let reflectance = || -> f64 {
+            let r0 = (1.0 - refraction_ratio) / (1.0 + refraction_ratio);
+            let r0 = r0 * r0;
+            r0 + (1.0 - r0) * (1.0 - cos_theta).powi(5)
+        };
+        let output_dir = if must_reflect || reflectance() > rand::rng().random::<f64>() {
+            unit_dir.reflected_over(hit_info.normal)
+        } else {
+            unit_dir.refract(hit_info.normal, refraction_ratio)
+        };
+        let output_ray = Ray::new(hit_info.hit_point, output_dir);
+        const WHITE: ColorVec3 = Vec3([1.0; _]);
+        Some((WHITE, output_ray))
     }
 }

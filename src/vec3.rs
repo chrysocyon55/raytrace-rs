@@ -119,7 +119,7 @@ impl Vec3 {
 
     /// Produces a unit vector with a random direction, constrained to the
     /// hemisphere surrounding the given normal vector.
-    pub fn random_hemisphere_unit(normal: &Vec3) -> Self {
+    pub fn random_hemisphere_unit(normal: &Self) -> Self {
         let v = Self::random_unit();
         if v.dot(normal) >= 0.0 { v } else { -v }
     }
@@ -132,6 +132,45 @@ impl Vec3 {
     pub fn is_near_zero(&self) -> bool {
         const EPSILON: f64 = 1e-8;
         self.0.into_iter().all(|component| component < EPSILON)
+    }
+
+    /// Computes the refraction of a unit vector through a refracting surface.
+    ///
+    /// `refraction_ratio` is the current medium's index of refraction divided
+    /// by the entered medium's index of refraction.
+    ///
+    /// Assumes that this vector and `unit_normal` are both unit vectors.
+    pub fn refract(&self, unit_normal: Self, refraction_ratio: f64) -> Self {
+        // Snell's law: for angles theta and theta' from the normal, and
+        // refraction indices eta and eta', then:
+        //  eta * sin(theta) = eta' * sin(theta')
+        // Therefore:
+        //  sin(theta') = (eta / eta') * sin(theta')
+        //
+        // For an incident vector r, we want to find the resulting vector r'.
+        // Finding the components of r' that are perpendicular and parallel to
+        // the surface normal n:
+        //  r_parallel = -|r| * cos(theta) * n
+        //  r_perp = r - r_parallel
+        //  r_perp = r + |r| * cos(theta) * n
+        //  r'_perp = (eta / eta') * (r + |r| * cos(theta) * n)
+        // The dot product can be expressed in terms of the cosine:
+        //  a . b = |a| * |b| * cos(angle_ab)
+        // Since r and n point in opposite directions, and n is a unit vector:
+        //  -(r . n) = |r| * |n| * cos(theta)
+        //  -(r . n) = |r| * cos(theta)
+        let r_cos_theta = -self.dot(&unit_normal);
+        let r_out_perp = refraction_ratio * (*self + (r_cos_theta * unit_normal));
+        // Since the resulting vector will also be a unit vector, then by using
+        // the Pythagorean theorem, we see:
+        // |r'|^2 = |r'_perp|^2 + |r'_parallel|^2
+        // 1 = |r'_perp|^2 + |r'_parallel|^2
+        // |r'_parallel| = sqrt(1 - |r'_perp|^2)
+        // r'_parallel = sqrt(1 - |r'_perp|^2) * (-n)
+        let r_out_parallel = (1.0 - r_out_perp.square_length()).sqrt() * (-unit_normal);
+        // Finally, r' is just the vector sum of its parallel and perpendicular
+        // components.
+        r_out_perp + r_out_parallel
     }
 }
 
