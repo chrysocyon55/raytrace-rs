@@ -1,5 +1,6 @@
 //! Cameras responsible for casting rays and rendering images.
 
+use std::f64;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -12,16 +13,16 @@ use crate::vec3::{ColorVec3, Vec3};
 /// Camera properties used to construct a camera.
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct CameraParams {
-    /// The width of the output image in pixels.
+    /// Width of the output image in pixels.
     pub image_width: u32,
     /// The aspect ratio of the viewport and output image.
     pub aspect_ratio: f64,
     /// The camera's position in world units.
     pub position: Vec3,
-    /// The height of the viewport in world units.
-    pub viewport_height: f64,
-    /// The distance from the camera to the viewport in world units.
-    pub focal_length: f64,
+    /// The coordinate the camera is pointed at.
+    pub view_target: Vec3,
+    /// Vertical field of view, in degrees.
+    pub vertical_fov: f64,
     /// The minimum number of samples to perform per pixel.
     /// Samples are taken as an evenly-spaced grid of N by N points, so the
     /// actual number of samples per pixel will be the smallest square number
@@ -35,12 +36,18 @@ pub struct CameraParams {
 static DEFAULT_PARAMS: CameraParams = CameraParams {
     image_width: 1920,
     aspect_ratio: 16.0 / 9.0,
-    position: Vec3::new(),
-    viewport_height: 2.0,
-    focal_length: 1.0,
+    position: Vec3([0.0, 0.0, 0.0]),
+    view_target: Vec3([0.0, 0.0, -1.0]),
+    vertical_fov: 90.0,
     min_samples: 36,
     max_depth: 25,
 };
+
+impl Default for CameraParams {
+    fn default() -> Self {
+        DEFAULT_PARAMS
+    }
+}
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Camera {
@@ -62,6 +69,10 @@ pub struct Camera {
     max_depth: usize,
 }
 
+const fn degrees_to_radians(deg: f64) -> f64 {
+    deg * f64::consts::PI / 180.0
+}
+
 impl Camera {
     /// Construct a new camera with the default parameters.
     pub fn new() -> Self {
@@ -74,31 +85,45 @@ impl Camera {
             image_width,
             aspect_ratio,
             position,
-            viewport_height,
-            focal_length,
+            view_target,
+            vertical_fov,
             min_samples,
             max_depth,
         } = params;
         assert!(aspect_ratio > 0.0, "aspect ratio must be positive");
-        assert!(viewport_height > 0.0, "viewport height must be positive");
-        assert!(focal_length > 0.0, "focal length must be positive");
+        assert!(vertical_fov > 0.0, "vertical FOV must be positive");
         assert!(min_samples > 0, "must have at least one sample per pixel");
 
         let image_height = (image_width as f64 / aspect_ratio) as u32;
+
+        let focal_length = (view_target - position).length();
+        assert!(
+            focal_length > 0.0,
+            "camera position cannot be on top of view target"
+        );
+        let half_height_scale = (degrees_to_radians(vertical_fov) / 2.0).tan();
+        let viewport_height = 2.0 * half_height_scale * focal_length;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
 
-        // Spacial coordinates: +X is right, +Y is up, +Z points out of the screen.
-        // Viewport coordinates: +U is right, +V is down.
+        // Compute camera basis vectors: +u is right, +v is up, and +w is out
+        // of the screen.
+        // +w is opposite to the direction the camera is pointing.
+        let basis_w = (position - view_target).normalized();
+        // +u is right-handed relative to the world's +Y (up) with +w.
+        let basis_u = Vec3([0.0, 1.0, 0.0]).cross(&basis_w).normalized();
+        // +v is right-handed relative to +w with +u.
+        let basis_v = basis_w.cross(&basis_u);
 
+        // Viewport coordinates: +U is right, +V is down.
         // Create vectors for the axes of the viewport in terms of world
-        // coordinates.
-        let viewport_u: Vec3 = Vec3([viewport_width, 0.0, 0.0]);
-        let viewport_v: Vec3 = Vec3([0.0, -viewport_height, 0.0]);
+        // coordinates:
+        let viewport_u: Vec3 = viewport_width * basis_u;
+        let viewport_v: Vec3 = -viewport_height * basis_v;
         // Compute the per-pixel step size for each viewport axis.
         let step_u = viewport_u / image_width as f64;
         let step_v = viewport_v / image_height as f64;
         // Compute the origin (top-left) of the viewport.
-        let viewport_depth = Vec3([0.0, 0.0, -focal_length]);
+        let viewport_depth = -focal_length * basis_w;
         let viewport_origin = position + viewport_depth - (0.5 * viewport_u) - (0.5 * viewport_v);
 
         let samples_per_dir = (min_samples + 1).isqrt();
