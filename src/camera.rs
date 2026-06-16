@@ -1,6 +1,5 @@
 //! Cameras responsible for casting rays and rendering images.
 
-use std::f64;
 use std::io::{self, Write};
 use std::path::Path;
 
@@ -70,7 +69,7 @@ pub struct Camera {
 }
 
 const fn degrees_to_radians(deg: f64) -> f64 {
-    deg * f64::consts::PI / 180.0
+    deg * std::f64::consts::PI / 180.0
 }
 
 impl Camera {
@@ -142,7 +141,7 @@ impl Camera {
 
     /// Render the given objects using this camera, saving the resulting image
     /// at the given path.
-    pub fn render(&self, world: &impl Hit, path: impl AsRef<Path>) {
+    pub fn render<H: Hit + ?Sized>(&self, world: &H, path: impl AsRef<Path>) {
         let sample_step_u = self.step_u / (self.samples_per_dir as f64);
         let sample_step_v = self.step_v / (self.samples_per_dir as f64);
         let samples_per_px = self.samples_per_dir * self.samples_per_dir;
@@ -195,7 +194,7 @@ impl Default for Camera {
 }
 
 /// Returns the pixel color associated with a given ray as a color vector.
-fn ray_color(ray: &Ray, depth: usize, world: &impl Hit) -> ColorVec3 {
+fn ray_color<H: Hit + ?Sized>(ray: &Ray, depth: usize, world: &H) -> ColorVec3 {
     if depth == 0 {
         // If the maximum recursion depth has been reached, the ray "fizzles"
         // and returns pure black.

@@ -130,7 +130,7 @@ pub trait Hit {
 }
 
 // A slice of objects that are `Hit` is also `Hit`.
-impl<T: Hit> Hit for &[T] {
+impl<T: Hit> Hit for [T] {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         // Find the nearest valid collision with any of the objects in this
         // slice:
