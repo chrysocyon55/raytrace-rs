@@ -55,8 +55,8 @@ pub fn face_normal(ray: &Ray, outward_normal: Vec3) -> (Face, Vec3) {
     }
 }
 
-/// An interval of time.
-#[derive(Debug, Clone, Copy, PartialEq)]
+/// A real-valued interval.
+#[derive(Debug, Clone, Copy)]
 pub struct Interval {
     pub start: f64,
     pub end: f64,
@@ -71,7 +71,7 @@ impl Interval {
         }
     }
 
-    /// Constructs a new interval that contains all times.
+    /// Constructs a new interval that contains all values.
     pub const fn universal() -> Self {
         Self {
             start: f64::NEG_INFINITY,
@@ -81,19 +81,33 @@ impl Interval {
 
     /// Returns the size of this interval.
     pub const fn size(&self) -> f64 {
-        0.0_f64.min(self.end - self.start)
+        (self.end - self.start).min(0.0)
     }
 
-    // Determines whether the given time is part of this interval. including
-    // the bounds.
-    pub const fn contains_inclusive(&self, t: f64) -> bool {
-        self.start <= t && t <= self.end
+    /// Determines whether the given value is part of this interval,
+    /// including the bounds.
+    pub const fn contains_inclusive(&self, x: f64) -> bool {
+        self.start <= x && x <= self.end
     }
 
-    // Determines whether the given time is part of this interval, excluding
-    // the bounds.
-    pub const fn contains_exclusive(&self, t: f64) -> bool {
-        self.start < t && t < self.end
+    /// Determines whether the given value is part of this interval,
+    /// excluding the bounds.
+    pub const fn contains_exclusive(&self, x: f64) -> bool {
+        self.start < x && x < self.end
+    }
+
+    /// Produces a new interval by expanding the size of this interval by a
+    /// given delta.
+    ///
+    /// The expansion is performed by moving the upper and lower bounds apart
+    /// by half of `delta`, resulting in the interval's size increasing by
+    /// `delta` overall.
+    pub const fn expand(&self, delta: f64) -> Self {
+        let padding = delta / 2.0;
+        Self {
+            start: self.start - padding,
+            end: self.end + padding,
+        }
     }
 }
 
@@ -127,6 +141,8 @@ pub trait Hit {
     /// where and when the collision occurs. Otherwise, if the ray does not
     /// collide with the object, returns `None`.
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>>;
+
+    // TODO: new method for getting an object's bounding box
 }
 
 // A slice of objects that are `Hit` is also `Hit`.

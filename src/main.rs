@@ -1,6 +1,7 @@
 // Adapted from the "Ray Tracing in One Weekend" series, at
 // https://raytracing.github.io/.
 
+mod bound;
 mod camera;
 mod hit;
 mod material;
