@@ -4,6 +4,7 @@ use std::io::{self, Write};
 use std::path::Path;
 
 use image::{Rgb, RgbImage};
+use rand::RngExt;
 
 use crate::hit::Hit;
 use crate::ray::Ray;
@@ -22,11 +23,8 @@ pub struct CameraParams {
     pub view_target: Vec3,
     /// Vertical field of view, in degrees.
     pub vertical_fov: f64,
-    /// The minimum number of samples to perform per pixel.
-    /// Samples are taken as an evenly-spaced grid of N by N points, so the
-    /// actual number of samples per pixel will be the smallest square number
-    /// that is greater or equal to this minimum.
-    pub min_samples: usize,
+    /// The number of samples to perform per pixel.
+    pub samples: usize,
     /// Maximum recursion depth for bounce light.
     pub max_depth: usize,
 }
@@ -38,8 +36,8 @@ static DEFAULT_PARAMS: CameraParams = CameraParams {
     position: Vec3([0.0, 0.0, 0.0]),
     view_target: Vec3([0.0, 0.0, -1.0]),
     vertical_fov: 90.0,
-    min_samples: 36,
-    max_depth: 25,
+    samples: 30,
+    max_depth: 15,
 };
 
 impl Default for CameraParams {
@@ -62,8 +60,8 @@ pub struct Camera {
     step_u: Vec3,
     /// The vertical displacement between viewport pixels, in world units.
     step_v: Vec3,
-    /// The side length of the square sample grid, in samples.
-    samples_per_dir: usize,
+    /// The number of samples to perform per pixel.
+    samples: usize,
     /// Maximum recursion depth for bounce light.
     max_depth: usize,
 }
@@ -86,12 +84,12 @@ impl Camera {
             position,
             view_target,
             vertical_fov,
-            min_samples,
+            samples,
             max_depth,
         } = params;
         assert!(aspect_ratio > 0.0, "aspect ratio must be positive");
         assert!(vertical_fov > 0.0, "vertical FOV must be positive");
-        assert!(min_samples > 0, "must have at least one sample per pixel");
+        assert!(samples > 0, "must have at least one sample per pixel");
 
         let image_height = (image_width as f64 / aspect_ratio) as u32;
 
@@ -125,8 +123,6 @@ impl Camera {
         let viewport_depth = -focal_length * basis_w;
         let viewport_origin = position + viewport_depth - (0.5 * viewport_u) - (0.5 * viewport_v);
 
-        let samples_per_dir = (min_samples + 1).isqrt();
-
         Self {
             image_width,
             image_height,
@@ -134,7 +130,7 @@ impl Camera {
             viewport_origin,
             step_u,
             step_v,
-            samples_per_dir,
+            samples,
             max_depth,
         }
     }
@@ -142,29 +138,27 @@ impl Camera {
     /// Render the given objects using this camera, saving the resulting image
     /// at the given path.
     pub fn render<H: Hit + ?Sized>(&self, world: &H, path: impl AsRef<Path>) {
-        let sample_step_u = self.step_u / (self.samples_per_dir as f64);
-        let sample_step_v = self.step_v / (self.samples_per_dir as f64);
-        let samples_per_px = self.samples_per_dir * self.samples_per_dir;
-
+        let mut rng = rand::rng();
         // Computes the average color of a pixel at the given index by
-        // sampling with multiple rays and averaging their resulting colors.
-        let pixel_color = |px_row, px_col| -> Rgb<u8> {
+        // randomly sampling with multiple rays and averaging their resulting
+        // colors.
+        let mut pixel_color = |px_row, px_col| -> Rgb<u8> {
             let mut total_color = ColorVec3::new();
             let px_offset_u = px_col as f64 * self.step_u;
             let px_offset_v = px_row as f64 * self.step_v;
             let px_topleft = self.viewport_origin + px_offset_u + px_offset_v;
-            // Sample within each pixel multiple times, in a square grid:
-            for samp_row in 0..self.samples_per_dir {
-                let samp_offset_v = (samp_row as f64 + 0.5) * sample_step_v;
-                for samp_col in 0..self.samples_per_dir {
-                    let samp_offset_u = (samp_col as f64 + 0.5) * sample_step_u;
-                    let samp_position = px_topleft + samp_offset_v + samp_offset_u;
-                    let ray_direction = samp_position - self.position;
-                    let ray = Ray::new(self.position, ray_direction);
-                    total_color += ray_color(&ray, self.max_depth, world);
-                }
+            // Sample within each pixel multiple times:
+            for _ in 0..self.samples {
+                // Compute a random point within the pixel:
+                let rand_u = rng.random::<f64>() * self.step_u;
+                let rand_v = rng.random::<f64>() * self.step_v;
+                let samp_position = px_topleft + rand_u + rand_v;
+                // Fire a ray from the camera through that point:
+                let ray_direction = samp_position - self.position;
+                let ray = Ray::new(self.position, ray_direction);
+                total_color += ray_color(&ray, self.max_depth, world);
             }
-            let avg_color = total_color / samples_per_px as f64;
+            let avg_color = total_color / self.samples as f64;
             let corrected_color = linear_to_gamma(avg_color);
             to_rgb(corrected_color)
         };

@@ -1,4 +1,5 @@
-// Adapted from "Ray Tracing in One Weekend", at https://raytracing.github.io/.
+// Adapted from the "Ray Tracing in One Weekend" series, at
+// https://raytracing.github.io/.
 
 mod camera;
 mod hit;
