@@ -79,6 +79,21 @@ impl Interval {
         }
     }
 
+    /// Constructs the smallest interval that encloses both of the provided
+    /// intervals.
+    pub const fn enclosing(iv1: &Self, iv2: &Self) -> Self {
+        let start = iv1.start.min(iv2.start);
+        let end = iv2.end.max(iv2.end);
+        Self { start, end }
+    }
+
+    /// Constructs the union of two intervals.
+    pub const fn union(iv1: &Self, iv2: &Self) -> Self {
+        let start = iv1.start.max(iv2.start);
+        let end = iv1.end.min(iv2.end);
+        Self { start, end }
+    }
+
     /// Returns the size of this interval.
     pub const fn size(&self) -> f64 {
         (self.end - self.start).min(0.0)
@@ -109,6 +124,7 @@ impl Interval {
             end: self.end + padding,
         }
     }
+
 }
 
 impl Default for Interval {

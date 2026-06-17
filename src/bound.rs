@@ -15,7 +15,7 @@ struct BoundingBox {
 impl BoundingBox {
     /// Constructs an empty bounding box.
     pub fn empty() -> Self {
-        Default::default() 
+        Default::default()
     }
 
     /// Constructs a new bounding box which encloses the given intervals
@@ -27,18 +27,66 @@ impl BoundingBox {
     /// Constructs a new bounding box with the given points as its opposite
     /// corners.
     pub fn from_corners(p1: &Vec3, p2: &Vec3) -> Self {
-        todo!()
+        let minmax = |x1, x2| if x1 < x2 { (x1, x2) } else { (x2, x1) };
+        let x_interval = minmax(p1.x(), p2.x()).into();
+        let y_interval = minmax(p1.y(), p2.y()).into();
+        let z_interval = minmax(p1.z(), p2.z()).into();
+        Self {
+            x: x_interval,
+            y: y_interval,
+            z: z_interval,
+        }
     }
 
     /// Constructs a new bounding box that encloses both of the provided
     /// bounding boxes.
     pub fn enclosing(b1: &Self, b2: &Self) -> Self {
-        todo!()
+        let x_interval = Interval::enclosing(&b1.x, &b2.x);
+        let y_interval = Interval::enclosing(&b1.y, &b2.y);
+        let z_interval = Interval::enclosing(&b1.z, &b2.z);
+        Self {
+            x: x_interval,
+            y: y_interval,
+            z: z_interval,
+        }
     }
-   
+
     /// Determines whether the given ray intersects this bounding box within
     /// the given time interval.
-    pub fn intersected_by(&self, ray: &Ray, ray_time: &Interval) -> bool {
-        todo!()
+    ///
+    /// If the ray intersects this bounding box in the given time interval,
+    /// returns `Some` containing the time interval the ray is within the box.
+    /// Otherwise, returns `None`.
+    pub fn intersected_by(&self, ray: &Ray, ray_time: Interval) -> Option<Interval> {
+        // We want to find the intersection of the ray with the six planes
+        // defined by this bounding box's intervals.
+        // A ray starting at point p and travelling in the direction d will
+        // be at the following point r(t):
+        //  r(t) = p + dt
+        // This applies to each plane and axis, so for the x-axis and the min
+        // plane x_0:
+        //  x_0 = p_x + d_x * t_x0
+        // Solving for t:
+        //  t_x0 = (x_0 - p_x) / d_x
+        // Similarly, for the max plane x_1:
+        //  t_x1 = (x_1 - p_x) / d_x
+        // The time interval [t_x0, t_x1] will be the range of times that the
+        // ray intersects this box's x-interval.
+        // A ray will intersect the box if and only if the time intervals of
+        // all three axes have nonzero overlap.
+        let mut time_union = ray_time;
+        let box_axes = [&self.x, &self.y, &self.z].into_iter();
+        let ray_origin = ray.origin.0.iter();
+        let ray_dir = ray.direction.0.iter();
+        for (box_axis, (ray_origin, ray_dir)) in box_axes.zip(ray_origin.zip(ray_dir)) {
+            let t0 = (box_axis.start - ray_origin) / ray_dir;
+            let t1 = (box_axis.end - ray_origin) / ray_dir;
+            let intersection_time = Interval { start: t0, end: t1 };
+            time_union = Interval::union(&time_union, &intersection_time);
+            if time_union.size() == 0.0 {
+                return None;
+            }
+        }
+        Some(time_union)
     }
 }
