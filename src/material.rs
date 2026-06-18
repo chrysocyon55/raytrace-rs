@@ -33,8 +33,8 @@ impl Lambertian {
     /// chance.
     ///
     /// Panics if `scatter_chance` is not in the interval [0.0, 1.0].
-    pub fn new(albedo: ColorVec3, scatter_chance: f64) -> Self {
-        assert!((0.0..=1.0).contains(&scatter_chance));
+    pub const fn new(albedo: ColorVec3, scatter_chance: f64) -> Self {
+        assert!(0.0 <= scatter_chance && scatter_chance <= 1.0);
         Self {
             albedo,
             scatter_chance,

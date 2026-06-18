@@ -2,6 +2,7 @@
 
 use std::fmt::{self, Debug};
 
+use crate::bound::BoundingBox;
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
@@ -124,7 +125,6 @@ impl Interval {
             end: self.end + padding,
         }
     }
-
 }
 
 impl Default for Interval {
@@ -158,25 +158,66 @@ pub trait Hit {
     /// collide with the object, returns `None`.
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>>;
 
-    // TODO: new method for getting an object's bounding box
+    /// Return a bounding box enclosing this object.
+    fn bounds(&self) -> &BoundingBox;
 }
 
-// A slice of objects that are `Hit` is also `Hit`.
-impl<T: Hit> Hit for [T] {
+/// A list of hittable objects and their collective bounding box.
+#[derive(Default)]
+pub struct Scene {
+    objects: Vec<Box<dyn Hit>>,
+    bounds: BoundingBox,
+}
+
+impl Scene {
+    /// Constructs a new empty scene.
+    pub fn new() -> Self {
+        Default::default()
+    }
+
+    /// Add a new object into this scene, updating the scene's bounding box
+    /// accordingly.
+    pub fn push(&mut self, object: Box<dyn Hit>) {
+        self.bounds = BoundingBox::enclosing(&self.bounds, object.bounds());
+        self.objects.push(object);
+    }
+}
+
+impl<H> FromIterator<H> for Scene
+where
+    H: Hit + 'static,
+{
+    fn from_iter<T: IntoIterator<Item = H>>(iter: T) -> Self {
+        let mut scene = Self::new();
+        for obj in iter.into_iter() {
+            scene.push(Box::new(obj));
+        }
+        scene
+    }
+}
+
+impl Hit for Scene {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
-        // Find the nearest valid collision with any of the objects in this
-        // slice:
-        let start = ray_time.start;
-        let mut curr_end = ray_time.end;
+        // TODO: this should be a potential optimization that avoids checking
+        // rays that could never intersect the scene, but it erroneously stops
+        // viable rays and makes the whole image empty.
+        // bbox constructors and intersections need more testing.
+        // let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
+        let mut curr_interval = *ray_time;
+        // Iterate over each hittable object in the scene, returning the hit
+        // info for the nearest object hit by the ray.
         let mut soonest_hit = None;
-        for obj in self.iter() {
-            let curr_interval = Interval::from((start, curr_end));
-            if let Some(info) = obj.hit(ray, &curr_interval) {
+        for obj in &self.objects {
+            if let Some(curr_info) = obj.hit(ray, &curr_interval) {
                 // Only consider collisions that happen sooner than this one.
-                curr_end = info.time;
-                soonest_hit = Some(info);
+                curr_interval.end = curr_info.time;
+                soonest_hit = Some(curr_info);
             }
         }
         soonest_hit
+    }
+
+    fn bounds(&self) -> &BoundingBox {
+        &self.bounds
     }
 }

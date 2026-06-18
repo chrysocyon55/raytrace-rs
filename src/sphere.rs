@@ -2,6 +2,7 @@
 
 use std::fmt::Debug;
 
+use crate::bound::BoundingBox;
 use crate::hit::{self, Hit, HitInfo, Interval};
 use crate::material::Material;
 use crate::ray::Ray;
@@ -12,6 +13,7 @@ pub struct Sphere<'mat> {
     center: Vec3,
     radius: f64,
     material: &'mat dyn Material,
+    bounds: BoundingBox,
 }
 
 impl<'mat> Sphere<'mat> {
@@ -21,10 +23,16 @@ impl<'mat> Sphere<'mat> {
     /// Panics if `radius` is less than or equal to `0.0`.
     pub fn new(center: Vec3, radius: f64, material: &'mat dyn Material) -> Self {
         assert!(radius > 0.0);
+        let center_to_bbox_corner = Vec3([radius; 3]);
+        let bounds = BoundingBox::from_corners(
+            &(center - center_to_bbox_corner),
+            &(center + center_to_bbox_corner),
+        );
         Self {
             center,
             radius,
             material,
+            bounds,
         }
     }
 }
@@ -97,5 +105,9 @@ impl<'mat> Hit for Sphere<'mat> {
             face,
             material: self.material,
         })
+    }
+
+    fn bounds(&self) -> &BoundingBox {
+        &self.bounds
     }
 }

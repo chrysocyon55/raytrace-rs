@@ -6,7 +6,7 @@ use crate::vec3::Vec3;
 
 #[derive(Debug, Clone, Copy, Default)]
 /// An axis-aligned bounding box.
-struct BoundingBox {
+pub struct BoundingBox {
     x: Interval,
     y: Interval,
     z: Interval,
@@ -88,5 +88,28 @@ impl BoundingBox {
             }
         }
         Some(time_union)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn bounding_box_constructors() {
+        let bbox = BoundingBox::from_corners(&Vec3([1.0, -2.0, 3.0]), &Vec3([-1.0, 2.0, -3.0]));
+        assert_eq!(bbox.x.start, -1.0);
+        assert_eq!(bbox.x.end, 1.0);
+        assert_eq!(bbox.y.start, -2.0);
+        assert_eq!(bbox.y.end, 2.0);
+        assert_eq!(bbox.z.start, -3.0);
+        assert_eq!(bbox.z.end, 3.0);
+
+        todo!("test BoundingBox::enclosing");
+    }
+
+    #[test]
+    fn bounding_box_collisions() {
+        todo!("test ray collisions with bboxes");
     }
 }
