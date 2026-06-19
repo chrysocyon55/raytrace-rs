@@ -24,6 +24,21 @@ impl BoundingBox {
         Self { x, y, z }
     }
 
+    /// Returns the interval of this bounding box along the x axis.
+    pub const fn x(&self) -> Interval {
+        self.x
+    }
+
+    /// Returns the interval of this bounding box along the y axis.
+    pub const fn y(&self) -> Interval {
+        self.y
+    }
+
+    /// Returns the interval of this bounding box along the z axis.
+    pub const fn z(&self) -> Interval {
+        self.z
+    }
+
     /// Constructs a new bounding box with the given points as its opposite
     /// corners.
     pub fn from_corners(p1: &Vec3, p2: &Vec3) -> Self {
