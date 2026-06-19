@@ -84,7 +84,7 @@ impl Interval {
     /// intervals.
     pub const fn enclosing(iv1: &Self, iv2: &Self) -> Self {
         let start = iv1.start.min(iv2.start);
-        let end = iv2.end.max(iv2.end);
+        let end = iv1.end.max(iv2.end);
         Self { start, end }
     }
 

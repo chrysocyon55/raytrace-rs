@@ -105,11 +105,14 @@ mod tests {
         assert_eq!(bbox.z.start, -3.0);
         assert_eq!(bbox.z.end, 3.0);
 
-        todo!("test BoundingBox::enclosing");
-    }
-
-    #[test]
-    fn bounding_box_collisions() {
-        todo!("test ray collisions with bboxes");
+        let bbox1 = BoundingBox::new((0.0, 1.0).into(), (0.0, 2.0).into(), (0.0, 3.0).into());
+        let bbox2 = BoundingBox::new((-4.0, 0.0).into(), (-5.0, 0.0).into(), (-6.0, 0.0).into());
+        let bbox = BoundingBox::enclosing(&bbox1, &bbox2);
+        assert_eq!(bbox.x.start, -4.0);
+        assert_eq!(bbox.x.end, 1.0);
+        assert_eq!(bbox.y.start, -5.0);
+        assert_eq!(bbox.y.end, 2.0);
+        assert_eq!(bbox.z.start, -6.0);
+        assert_eq!(bbox.z.end, 3.0);
     }
 }
