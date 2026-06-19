@@ -59,7 +59,10 @@ impl Material for Lambertian {
             // vector.
             scatter_dir = hit_info.normal;
         }
-        let scattered_ray = Ray::new(hit_info.hit_point, scatter_dir);
+        let scattered_ray = Ray {
+            origin: hit_info.hit_point,
+            direction: scatter_dir,
+        };
         Some((self.albedo, scattered_ray))
     }
 }
@@ -100,7 +103,10 @@ impl Material for Metal {
         if fuzzed.dot(&hit_info.normal) < 0.0 {
             return None;
         }
-        let reflected_ray = Ray::new(hit_info.hit_point, fuzzed);
+        let reflected_ray = Ray {
+            origin: hit_info.hit_point,
+            direction: fuzzed,
+        };
         Some((self.albedo, reflected_ray))
     }
 }
@@ -162,7 +168,10 @@ impl Material for Dielectric {
         } else {
             unit_dir.refract(hit_info.normal, refraction_ratio)
         };
-        let output_ray = Ray::new(hit_info.hit_point, output_dir);
+        let output_ray = Ray {
+            origin: hit_info.hit_point,
+            direction: output_dir,
+        };
         const WHITE: ColorVec3 = Vec3([1.0; _]);
         Some((WHITE, output_ray))
     }

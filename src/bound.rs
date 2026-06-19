@@ -74,20 +74,32 @@ impl BoundingBox {
         // ray intersects this box's x-interval.
         // A ray will intersect the box if and only if the time intervals of
         // all three axes have nonzero overlap.
-        let mut time_union = ray_time;
+        let mut intersect_time = ray_time;
         let box_axes = [&self.x, &self.y, &self.z].into_iter();
         let ray_origin = ray.origin.0.iter();
         let ray_dir = ray.direction.0.iter();
         for (box_axis, (ray_origin, ray_dir)) in box_axes.zip(ray_origin.zip(ray_dir)) {
             let t0 = (box_axis.start - ray_origin) / ray_dir;
             let t1 = (box_axis.end - ray_origin) / ray_dir;
-            let intersection_time = Interval { start: t0, end: t1 };
-            time_union = Interval::union(&time_union, &intersection_time);
-            if time_union.size() == 0.0 {
+            // If the ray direction is negative, then t0 may be greater than
+            // t1, so we need to reverse the times.
+            let (start, end) = if t0 <= t1 { (t0, t1) } else { (t1, t0) };
+            // Additionally, if the ray is orthogonally aligned, then `ray_dir`
+            // will be 0, causing the times to be +/- infinity (or NaN, if the
+            // ray's origin is also on the surface of the box). However, these
+            // comparisons should handle those cases gracefully.
+            if start > intersect_time.start {
+                intersect_time.start = start;
+            }
+            if end < intersect_time.end {
+                intersect_time.end = end;
+            }
+            // If the intersection time interval is empty, bail early.
+            if intersect_time.start >= intersect_time.end {
                 return None;
             }
         }
-        Some(time_union)
+        Some(intersect_time)
     }
 }
 
@@ -114,5 +126,19 @@ mod tests {
         assert_eq!(bbox.y.end, 2.0);
         assert_eq!(bbox.z.start, -6.0);
         assert_eq!(bbox.z.end, 3.0);
+    }
+
+    #[test]
+    fn bounding_box_collisions() {
+        let bbox = BoundingBox::new((0.0, 2.0).into(), (-1.0, 1.0).into(), (-1.0, 1.0).into());
+        let ray = Ray {
+            origin: (-1.0, 0.0, 0.0).into(),
+            direction: (1.0, 0.0, 0.0).into(),
+        };
+        let Some(collide) = bbox.intersected_by(&ray, Interval::universal()) else {
+            panic!("collision should occur successfully");
+        };
+        assert_eq!(collide.start, 1.0);
+        assert_eq!(collide.end, 3.0);
     }
 }

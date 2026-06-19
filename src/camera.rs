@@ -155,7 +155,10 @@ impl Camera {
                 let samp_position = px_topleft + rand_u + rand_v;
                 // Fire a ray from the camera through that point:
                 let ray_direction = samp_position - self.position;
-                let ray = Ray::new(self.position, ray_direction);
+                let ray = Ray {
+                    origin: self.position,
+                    direction: ray_direction,
+                };
                 total_color += ray_color(&ray, self.max_depth, world);
             }
             let avg_color = total_color / self.samples as f64;

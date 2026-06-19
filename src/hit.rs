@@ -198,12 +198,7 @@ where
 
 impl Hit for Scene {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
-        // TODO: this should be a potential optimization that avoids checking
-        // rays that could never intersect the scene, but it erroneously stops
-        // viable rays and makes the whole image empty.
-        // bbox constructors and intersections need more testing.
-        // let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
-        let mut curr_interval = *ray_time;
+        let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
         // Iterate over each hittable object in the scene, returning the hit
         // info for the nearest object hit by the ray.
         let mut soonest_hit = None;
