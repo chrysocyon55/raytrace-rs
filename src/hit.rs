@@ -164,12 +164,12 @@ pub trait Hit {
 
 /// A list of hittable objects and their collective bounding box.
 #[derive(Default)]
-pub struct Scene {
+pub struct SceneList {
     objects: Vec<Box<dyn Hit>>,
     bounds: BoundingBox,
 }
 
-impl Scene {
+impl SceneList {
     /// Constructs a new empty scene.
     pub fn new() -> Self {
         Default::default()
@@ -183,20 +183,17 @@ impl Scene {
     }
 }
 
-impl<H> FromIterator<H> for Scene
-where
-    H: Hit + 'static,
-{
-    fn from_iter<T: IntoIterator<Item = H>>(iter: T) -> Self {
+impl FromIterator<Box<dyn Hit>> for SceneList {
+    fn from_iter<I: IntoIterator<Item = Box<dyn Hit>>>(iter: I) -> Self {
         let mut scene = Self::new();
         for obj in iter.into_iter() {
-            scene.push(Box::new(obj));
+            scene.push(obj);
         }
         scene
     }
 }
 
-impl Hit for Scene {
+impl Hit for SceneList {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
         // Iterate over each hittable object in the scene, returning the hit

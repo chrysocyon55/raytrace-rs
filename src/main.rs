@@ -2,6 +2,7 @@
 // https://raytracing.github.io/.
 
 mod bound;
+mod bvh;
 mod camera;
 mod hit;
 mod material;
@@ -10,7 +11,7 @@ mod sphere;
 mod vec3;
 
 use crate::camera::{Camera, CameraParams};
-use crate::hit::Scene;
+use crate::hit::{Hit, SceneList};
 use crate::material::{Dielectric, Lambertian, Metal};
 use crate::sphere::Sphere;
 use crate::vec3::Vec3;
@@ -30,12 +31,13 @@ fn main() {
 
     static GLASS: Dielectric = Dielectric::new(0.75);
 
-    let world = [
-        Sphere::new(Vec3([0.0, -100.5, -1.0]), 100.0, &MATTE_GREEN),
-        Sphere::new(Vec3([0.0, 0.0, -0.25]), 0.5, &MATTE_RED),
-        Sphere::new(Vec3([-1.0, -0.05, 0.0]), 0.5, &GLASS),
-        Sphere::new(Vec3([1.0, -0.05, 0.0]), 0.5, &GOLD),
-    ].into_iter().collect::<Scene>();
+    let world: [Box<dyn Hit>; _] = [
+        Box::new(Sphere::new(Vec3([0.0, -100.5, -1.0]), 100.0, &MATTE_GREEN)),
+        Box::new(Sphere::new(Vec3([0.0, 0.0, -0.25]), 0.5, &MATTE_RED)),
+        Box::new(Sphere::new(Vec3([-1.0, -0.05, 0.0]), 0.5, &GLASS)),
+        Box::new(Sphere::new(Vec3([1.0, -0.05, 0.0]), 0.5, &GOLD)),
+    ];
+    let scene = world.into_iter().collect::<SceneList>();
 
-    camera.render(&world, "./output.png");
+    camera.render(&scene, "./output.png");
 }
