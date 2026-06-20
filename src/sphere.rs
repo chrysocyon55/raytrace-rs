@@ -1,6 +1,6 @@
 //! The sphere collider.
 
-use std::fmt::Debug;
+use std::fmt::{self, Debug};
 
 use crate::bound::{BoundingBox, Interval};
 use crate::hit::{self, Hit, HitInfo};
@@ -38,7 +38,7 @@ impl<'mat> Sphere<'mat> {
 }
 
 impl Debug for Sphere<'_> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("Sphere")
             .field("center", &self.center)
             .field("radius", &self.radius)
