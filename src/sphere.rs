@@ -2,8 +2,8 @@
 
 use std::fmt::Debug;
 
-use crate::bound::BoundingBox;
-use crate::hit::{self, Hit, HitInfo, Interval};
+use crate::bound::{BoundingBox, Interval};
+use crate::hit::{self, Hit, HitInfo};
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::Vec3;

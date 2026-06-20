@@ -2,7 +2,7 @@
 
 use std::fmt::{self, Debug};
 
-use crate::bound::BoundingBox;
+use crate::bound::{BoundingBox, Interval};
 use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
@@ -56,98 +56,6 @@ pub fn face_normal(ray: &Ray, outward_normal: Vec3) -> (Face, Vec3) {
     }
 }
 
-/// A real-valued interval.
-#[derive(Debug, Clone, Copy)]
-pub struct Interval {
-    pub start: f64,
-    pub end: f64,
-}
-
-impl Interval {
-    /// Constructs a new empty interval.
-    pub const fn empty() -> Self {
-        Self {
-            start: f64::INFINITY,
-            end: f64::NEG_INFINITY,
-        }
-    }
-
-    /// Constructs a new interval that contains all values.
-    pub const fn universal() -> Self {
-        Self {
-            start: f64::NEG_INFINITY,
-            end: f64::INFINITY,
-        }
-    }
-
-    /// Constructs the smallest interval that encloses both of the provided
-    /// intervals.
-    pub const fn enclosing(iv1: &Self, iv2: &Self) -> Self {
-        let start = iv1.start.min(iv2.start);
-        let end = iv1.end.max(iv2.end);
-        Self { start, end }
-    }
-
-    /// Constructs the union of two intervals.
-    pub const fn union(iv1: &Self, iv2: &Self) -> Self {
-        let start = iv1.start.max(iv2.start);
-        let end = iv1.end.min(iv2.end);
-        Self { start, end }
-    }
-
-    /// Returns the size of this interval.
-    pub const fn size(&self) -> f64 {
-        (self.end - self.start).min(0.0)
-    }
-
-    /// Determines whether the given value is part of this interval,
-    /// including the bounds.
-    pub const fn contains_inclusive(&self, x: f64) -> bool {
-        self.start <= x && x <= self.end
-    }
-
-    /// Determines whether the given value is part of this interval,
-    /// excluding the bounds.
-    pub const fn contains_exclusive(&self, x: f64) -> bool {
-        self.start < x && x < self.end
-    }
-
-    /// Produces a new interval by expanding the size of this interval by a
-    /// given delta.
-    ///
-    /// The expansion is performed by moving the upper and lower bounds apart
-    /// by half of `delta`, resulting in the interval's size increasing by
-    /// `delta` overall.
-    pub const fn expand(&self, delta: f64) -> Self {
-        let padding = delta / 2.0;
-        Self {
-            start: self.start - padding,
-            end: self.end + padding,
-        }
-    }
-}
-
-impl Default for Interval {
-    fn default() -> Self {
-        Self::empty()
-    }
-}
-
-impl From<(f64, f64)> for Interval {
-    fn from(value: (f64, f64)) -> Self {
-        Self {
-            start: value.0,
-            end: value.1,
-        }
-    }
-}
-
-impl From<Interval> for (f64, f64) {
-    fn from(value: Interval) -> Self {
-        (value.start, value.end)
-    }
-}
-
 /// Objects that can interact with ("hit") light rays.
 pub trait Hit {
     /// Determines whether a ray collides with this object in the given time
@@ -160,56 +68,4 @@ pub trait Hit {
 
     /// Return a bounding box enclosing this object.
     fn bounds(&self) -> &BoundingBox;
-}
-
-/// A list of hittable objects and their collective bounding box.
-#[derive(Default)]
-pub struct SceneList {
-    objects: Vec<Box<dyn Hit>>,
-    bounds: BoundingBox,
-}
-
-impl SceneList {
-    /// Constructs a new empty scene.
-    pub fn new() -> Self {
-        Default::default()
-    }
-
-    /// Add a new object into this scene, updating the scene's bounding box
-    /// accordingly.
-    pub fn push(&mut self, object: Box<dyn Hit>) {
-        self.bounds = BoundingBox::enclosing(&self.bounds, object.bounds());
-        self.objects.push(object);
-    }
-}
-
-impl FromIterator<Box<dyn Hit>> for SceneList {
-    fn from_iter<I: IntoIterator<Item = Box<dyn Hit>>>(iter: I) -> Self {
-        let mut scene = Self::new();
-        for obj in iter.into_iter() {
-            scene.push(obj);
-        }
-        scene
-    }
-}
-
-impl Hit for SceneList {
-    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
-        let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
-        // Iterate over each hittable object in the scene, returning the hit
-        // info for the nearest object hit by the ray.
-        let mut soonest_hit = None;
-        for obj in &self.objects {
-            if let Some(curr_info) = obj.hit(ray, &curr_interval) {
-                // Only consider collisions that happen sooner than this one.
-                curr_interval.end = curr_info.time;
-                soonest_hit = Some(curr_info);
-            }
-        }
-        soonest_hit
-    }
-
-    fn bounds(&self) -> &BoundingBox {
-        &self.bounds
-    }
 }
