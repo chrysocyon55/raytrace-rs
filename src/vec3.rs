@@ -124,6 +124,23 @@ impl Vec3 {
         if v.dot(normal) >= 0.0 { v } else { -v }
     }
 
+    /// Produces a random vector within the XY-plane's unit disk.
+    pub fn random_in_disk() -> Self {
+        let mut rng = rand::rng();
+        loop {
+            // Sample random vectors in the XY-plane until one lies inside the
+            // unit disk.
+            let v = Self([
+                rng.random_range(-1.0..=1.0),
+                rng.random_range(-1.0..=1.0),
+                0.0,
+            ]);
+            if v.square_length() < 1.0 {
+                return v;
+            }
+        }
+    }
+
     /// Determines whether this vector is very close to the zero vector.
     ///
     /// This is useful for preventing undesirable behavior where vectors with a

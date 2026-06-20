@@ -23,6 +23,10 @@ pub struct CameraParams {
     pub view_target: Vec3,
     /// Vertical field of view, in degrees.
     pub vertical_fov: f64,
+    /// The maximum angular variation of rays due to defocus blur, in degrees.
+    pub defocus_angle: f64,
+    /// The distance the camera is focusing on, where no blur wil occur.
+    pub focus_dist: f64,
     /// The number of samples to perform per pixel.
     pub samples: usize,
     /// Maximum recursion depth for bounce light.
@@ -36,6 +40,8 @@ static DEFAULT_PARAMS: CameraParams = CameraParams {
     position: Vec3([0.0, 0.0, 0.0]),
     view_target: Vec3([0.0, 0.0, -1.0]),
     vertical_fov: 90.0,
+    defocus_angle: 0.0,
+    focus_dist: 1.0,
     samples: 30,
     max_depth: 15,
 };
@@ -60,6 +66,8 @@ pub struct Camera {
     step_u: Vec3,
     /// The vertical displacement between viewport pixels, in world units.
     step_v: Vec3,
+    /// The maximum defocus blur basis vectors.
+    defocus_basis: Option<(Vec3, Vec3)>,
     /// The number of samples to perform per pixel.
     samples: usize,
     /// Maximum recursion depth for bounce light.
@@ -84,22 +92,21 @@ impl Camera {
             position,
             view_target,
             vertical_fov,
+            defocus_angle,
+            focus_dist,
             samples,
             max_depth,
         } = params;
         assert!(aspect_ratio > 0.0, "aspect ratio must be positive");
         assert!(vertical_fov > 0.0, "vertical FOV must be positive");
+        assert!(defocus_angle >= 0.0, "defocus angle cannot be negative");
         assert!(samples > 0, "must have at least one sample per pixel");
 
         let image_height = (image_width as f64 / aspect_ratio) as u32;
 
-        let focal_length = (view_target - position).length();
-        assert!(
-            focal_length > 0.0,
-            "camera position cannot be on top of view target"
-        );
+        // Compute viewport size.
         let half_height_scale = (degrees_to_radians(vertical_fov) / 2.0).tan();
-        let viewport_height = 2.0 * half_height_scale * focal_length;
+        let viewport_height = 2.0 * half_height_scale * focus_dist;
         let viewport_width = viewport_height * (image_width as f64 / image_height as f64);
 
         // Compute camera basis vectors: +u is right, +v is up, and +w is out
@@ -120,8 +127,18 @@ impl Camera {
         let step_u = viewport_u / image_width as f64;
         let step_v = viewport_v / image_height as f64;
         // Compute the origin (top-left) of the viewport.
-        let viewport_depth = -focal_length * basis_w;
+        let viewport_depth = -focus_dist * basis_w;
         let viewport_origin = position + viewport_depth - (0.5 * viewport_u) - (0.5 * viewport_v);
+
+        // Compute the basis for the defocus disk.
+        let defocus_basis = if defocus_angle == 0.0 {
+            None
+        } else {
+            let defocus_radius = focus_dist * (degrees_to_radians(defocus_angle / 2.0)).tan();
+            let defocus_u = basis_u * defocus_radius;
+            let defocus_v = basis_v * defocus_radius;
+            Some((defocus_u, defocus_v))
+        };
 
         Self {
             image_width,
@@ -130,6 +147,7 @@ impl Camera {
             viewport_origin,
             step_u,
             step_v,
+            defocus_basis,
             samples,
             max_depth,
         }
@@ -149,14 +167,23 @@ impl Camera {
             let px_topleft = self.viewport_origin + px_offset_u + px_offset_v;
             // Sample within each pixel multiple times:
             for _ in 0..self.samples {
+                // Compute the starting point from the camera, applying a
+                // random defocus blur if needed:
+                let ray_origin = match self.defocus_basis {
+                    None => self.position,
+                    Some((defocus_u, defocus_v)) => {
+                        let blur = Vec3::random_in_disk();
+                        self.position + blur.0[0] * defocus_u + blur.0[1] * defocus_v
+                    }
+                };
                 // Compute a random point within the pixel:
                 let rand_u = rng.random::<f64>() * self.step_u;
                 let rand_v = rng.random::<f64>() * self.step_v;
                 let samp_position = px_topleft + rand_u + rand_v;
                 // Fire a ray from the camera through that point:
-                let ray_direction = samp_position - self.position;
+                let ray_direction = samp_position - ray_origin;
                 let ray = Ray {
-                    origin: self.position,
+                    origin: ray_origin,
                     direction: ray_direction,
                 };
                 total_color += ray_color(&ray, self.max_depth, world);
