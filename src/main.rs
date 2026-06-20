@@ -25,14 +25,16 @@ fn new_static<T>(x: T) -> &'static T {
 }
 
 fn main() {
+    const RENDER_FULL_SCENE: bool = false;
+
     let camera = Camera::with_parameters(&CameraParams {
         position: Vec3([13.0, 2.0, 4.0]),
         view_target: Vec3([0.0, 0.0, 0.0]),
         vertical_fov: 20.0,
         defocus_angle: 0.4,
         focus_dist: 11.0,
-        samples: 200,
-        max_depth: 50,
+        samples: if RENDER_FULL_SCENE { 200 } else { 50 },
+        max_depth: if RENDER_FULL_SCENE { 50 } else { 25 },
         ..Default::default()
     });
 
@@ -42,7 +44,6 @@ fn main() {
     let ground = Sphere::new((0.0, -1000.0, 0.0).into(), 1000.0, &GROUND_MAT);
     world.push(Box::new(ground));
 
-    const RENDER_FULL_SCENE: bool = false; // toggle full scene
     if RENDER_FULL_SCENE {
         // Populate the world with a grid of spheres, randomly adjusting their
         // positions for a less uniform appearance.
