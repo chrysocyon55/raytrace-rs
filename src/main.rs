@@ -38,7 +38,7 @@ fn main() {
         ..Default::default()
     });
 
-    let mut world: Vec<Box<dyn Hit>> = vec![];
+    let mut world: Vec<Box<dyn Hit + Sync>> = vec![];
     // Add a large sphere to mimic a ground plane.
     static GROUND_MAT: Lambertian = Lambertian::new(Vec3([0.5, 0.5, 0.5]), 0.9);
     let ground = Sphere::new((0.0, -1000.0, 0.0).into(), 1000.0, &GROUND_MAT);
@@ -61,7 +61,7 @@ fn main() {
                     continue;
                 }
                 // Pick a material at random.
-                let material: &'static dyn Material = match rng.random::<f64>() {
+                let material: &'static (dyn Material + Sync) = match rng.random::<f64>() {
                     (0.0..=0.8) => {
                         let albedo = Vec3::random() * Vec3::random();
                         new_static(Lambertian::new(albedo, rng.random_range(0.8..=1.0)))
@@ -83,7 +83,7 @@ fn main() {
     static MATTE_RED: Lambertian = Lambertian::new(Vec3([0.95, 0.15, 0.05]), 0.8);
     static GOLD: Metal = Metal::new(Vec3([0.925, 0.875, 0.3]), 0.2);
     static GLASS: Dielectric = Dielectric::new(1.5);
-    let center_spheres: [Box<dyn Hit>; _] = [
+    let center_spheres: [Box<dyn Hit + Sync>; _] = [
         Box::new(Sphere::new(Vec3([-4.0, 1.0, 0.0]), 1.0, &GOLD)),
         Box::new(Sphere::new(Vec3([0.0, 1.0, 0.0]), 1.0, &MATTE_RED)),
         Box::new(Sphere::new(Vec3([4.0, 1.0, 0.0]), 1.0, &GLASS)),

@@ -69,7 +69,7 @@ impl Hit for SceneList {
 /// ray intersections.
 pub enum SceneTree {
     Empty,
-    Leaf(Box<dyn Hit>),
+    Leaf(Box<dyn Hit + Sync>),
     Tree {
         left: Box<SceneTree>,
         right: Box<SceneTree>,
@@ -79,7 +79,7 @@ pub enum SceneTree {
 
 impl SceneTree {
     /// Constructs a new scene tree over a list of hittable objects.
-    pub fn new(mut objects: Vec<Box<dyn Hit>>) -> Self {
+    pub fn new(mut objects: Vec<Box<dyn Hit + Sync>>) -> Self {
         if objects.is_empty() {
             return Self::Empty;
         } else if objects.len() == 1 {

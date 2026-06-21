@@ -105,6 +105,7 @@ pub struct BoundingBox {
 
 impl BoundingBox {
     /// Constructs an empty bounding box.
+    #[allow(dead_code)]
     pub fn empty() -> Self {
         Default::default()
     }

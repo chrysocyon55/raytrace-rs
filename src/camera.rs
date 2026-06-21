@@ -1,7 +1,7 @@
 //! Cameras responsible for casting rays and rendering images.
 
-use std::io::{self, Write};
 use std::path::Path;
+use std::time::Instant;
 
 use image::{Rgb, RgbImage};
 use rand::RngExt;
@@ -155,12 +155,12 @@ impl Camera {
 
     /// Render the given objects using this camera, saving the resulting image
     /// at the given path.
-    pub fn render<H: Hit + ?Sized>(&self, world: &H, path: impl AsRef<Path>) {
-        let mut rng = rand::rng();
+    pub fn render<H: Hit + Sync>(&self, world: &H, path: impl AsRef<Path>) {
         // Computes the average color of a pixel at the given index by
         // randomly sampling with multiple rays and averaging their resulting
         // colors.
-        let mut pixel_color = |px_row, px_col| -> Rgb<u8> {
+        let pixel_color = |px_col, px_row| -> Rgb<u8> {
+            let mut rng = rand::rng();
             let mut total_color = ColorVec3::new();
             let px_offset_u = px_col as f64 * self.step_u;
             let px_offset_v = px_row as f64 * self.step_v;
@@ -194,19 +194,17 @@ impl Camera {
         };
 
         println!("Starting render.");
-        let mut img = RgbImage::new(self.image_width, self.image_height);
-        // Iterate over each pixel in the image and compute its color:
-        for row in 0..self.image_height {
-            print!("Rendering scanline {}/{}...\r", row + 1, self.image_height);
-            io::stdout().flush().unwrap();
-            for col in 0..self.image_width {
-                let color = pixel_color(row, col);
-                img.put_pixel(col, row, color);
-            }
-        }
-        img.save(&path).unwrap();
-        // Long blank space to overwrite the "rendering scanline" text above
-        println!("Render complete.                         ");
+        let start_time = Instant::now();
+        // Iterate over each pixel in the image and compute its color, saving
+        // the result as a new file.
+        RgbImage::from_par_fn(self.image_width, self.image_height, pixel_color)
+            .save(&path)
+            .unwrap();
+        let render_time = start_time.elapsed();
+        let total_seconds = render_time.as_secs();
+        let minutes = total_seconds / 60;
+        let seconds = total_seconds % 60;
+        println!("Render complete. ({minutes} min {seconds} sec)");
         println!("Saved output image as {}", &path.as_ref().display());
     }
 }

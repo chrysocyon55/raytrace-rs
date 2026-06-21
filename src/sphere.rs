@@ -12,7 +12,7 @@ use crate::vec3::Vec3;
 pub struct Sphere<'mat> {
     center: Vec3,
     radius: f64,
-    material: &'mat dyn Material,
+    material: &'mat (dyn Material + Sync),
     bounds: BoundingBox,
 }
 
@@ -21,7 +21,7 @@ impl<'mat> Sphere<'mat> {
     /// surface is a given material.
     ///
     /// Panics if `radius` is less than or equal to `0.0`.
-    pub fn new(center: Vec3, radius: f64, material: &'mat dyn Material) -> Self {
+    pub fn new(center: Vec3, radius: f64, material: &'mat (dyn Material + Sync)) -> Self {
         assert!(radius > 0.0);
         let center_to_bbox_corner = Vec3([radius; 3]);
         let bounds = BoundingBox::from_corners(

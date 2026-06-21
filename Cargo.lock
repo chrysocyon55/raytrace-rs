@@ -889,6 +889,7 @@ version = "0.1.0"
 dependencies = [
  "image",
  "rand 0.10.1",
+ "rayon",
 ]
 
 [[package]]
