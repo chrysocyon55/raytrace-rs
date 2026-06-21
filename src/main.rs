@@ -25,7 +25,7 @@ fn new_static<T>(x: T) -> &'static T {
 }
 
 fn main() {
-    const RENDER_FULL_SCENE: bool = false;
+    const RENDER_FULL_SCENE: bool = true;
 
     let camera = Camera::with_parameters(&CameraParams {
         position: Vec3([13.0, 2.0, 4.0]),
@@ -33,7 +33,7 @@ fn main() {
         vertical_fov: 20.0,
         defocus_angle: 0.4,
         focus_dist: 11.0,
-        samples: if RENDER_FULL_SCENE { 200 } else { 50 },
+        samples: if RENDER_FULL_SCENE { 500 } else { 50 },
         max_depth: if RENDER_FULL_SCENE { 50 } else { 25 },
         ..Default::default()
     });

@@ -1,6 +1,7 @@
 //! Cameras responsible for casting rays and rendering images.
 
 use std::path::Path;
+use std::sync::Mutex;
 use std::time::Instant;
 
 use image::{Rgb, RgbImage};
@@ -156,6 +157,28 @@ impl Camera {
     /// Render the given objects using this camera, saving the resulting image
     /// at the given path.
     pub fn render<H: Hit + Sync>(&self, world: &H, path: impl AsRef<Path>) {
+        // Counters for tracking render progress.
+        let col_px_counter = Mutex::new(0);
+        let row_px_counter = Mutex::new(0);
+        let increment_counter = || {
+            // Increment column counter, rolling over to the row counter if
+            // the column counter fills up.
+            let mut col = col_px_counter.lock().unwrap();
+            *col += 1;
+            if *col == self.image_width {
+                *col = 0;
+                let mut row = row_px_counter.lock().unwrap();
+                *row += 1;
+                // Every time the row counter is updated, print the current
+                // percentage to the terminal.
+                let percentage = *row as f64 * 100.0 / self.image_height as f64;
+                // The escape sequence "\x1b[1A" moves the terminal cursor up
+                // one row, overwriting the previously printed progress
+                // message.
+                println!("Render progress: {percentage:.1}%...\x1b[1A");
+            }
+        };
+
         // Computes the average color of a pixel at the given index by
         // randomly sampling with multiple rays and averaging their resulting
         // colors.
@@ -190,7 +213,9 @@ impl Camera {
             }
             let avg_color = total_color / self.samples as f64;
             let corrected_color = linear_to_gamma(avg_color);
-            to_rgb(corrected_color)
+            let pixel = to_rgb(corrected_color);
+            increment_counter();
+            pixel
         };
 
         println!("Starting render.");
