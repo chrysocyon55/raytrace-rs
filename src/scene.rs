@@ -2,8 +2,6 @@
 
 use std::cmp::Ordering;
 
-use rand::RngExt;
-
 use crate::bound::{BoundingBox, Interval};
 use crate::hit::{Hit, HitInfo};
 use crate::ray::Ray;
@@ -85,15 +83,28 @@ impl SceneTree {
         } else if objects.len() == 1 {
             return Self::Leaf(objects.into_iter().next().unwrap());
         }
-        // Pick a random axis to divide the scene along.
-        let get_axis =
-            [BoundingBox::x, BoundingBox::y, BoundingBox::z][rand::rng().random_range(0..2)];
+        // Compute the overall bounding box for this tree.
+        let bound = objects.iter().fold(BoundingBox::empty(), |acc, x| {
+            BoundingBox::enclosing(&acc, x.bounds())
+        });
+        // Divide the scene along the longest axis of the current bounding box.
+        let get_longest_axis = if bound.x().size() >= bound.y().size() {
+            if bound.x().size() >= bound.z().size() {
+                BoundingBox::x
+            } else {
+                BoundingBox::z
+            }
+        } else if bound.y().size() >= bound.z().size() {
+            BoundingBox::y
+        } else {
+            BoundingBox::z
+        };
         // Sort the objects by the coordinates of their bounding boxes along
         // that axis (first by the intervals' starts, then tiebreaking by their
         // ends).
         objects.sort_unstable_by(|obj1, obj2| {
-            let axis1 = get_axis(obj1.bounds());
-            let axis2 = get_axis(obj2.bounds());
+            let axis1 = get_longest_axis(obj1.bounds());
+            let axis2 = get_longest_axis(obj2.bounds());
             match axis1.start.total_cmp(&axis2.start) {
                 Ordering::Equal => axis1.end.total_cmp(&axis2.end),
                 ord => ord,
@@ -104,8 +115,6 @@ impl SceneTree {
         let left_objects = objects;
         let left = Box::new(Self::new(left_objects));
         let right = Box::new(Self::new(right_objects));
-        // Compute the overall bounding box for this tree.
-        let bound = BoundingBox::enclosing(left.bounds(), right.bounds());
         Self::Tree { left, right, bound }
     }
 }
