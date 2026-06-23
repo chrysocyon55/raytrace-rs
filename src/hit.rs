@@ -7,13 +7,6 @@ use crate::material::Material;
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
-/// The face direction of a hittable object.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum Face {
-    Front,
-    Back,
-}
-
 /// A description of a ray's collision with an object.
 #[derive(Clone)]
 pub struct HitInfo<'mat> {
@@ -26,7 +19,7 @@ pub struct HitInfo<'mat> {
     /// The time when the collision occurred.
     pub time: f64,
     /// Whether the ray hit the front face of the object.
-    pub face: Face,
+    pub is_front_face: bool,
     /// The material of the object hit by the ray.
     pub material: &'mat dyn Material,
 }
@@ -37,23 +30,15 @@ impl Debug for HitInfo<'_> {
             .field("hit_point", &self.hit_point)
             .field("normal", &self.normal)
             .field("time", &self.time)
-            .field("face", &self.face)
+            .field("is_front_face", &self.is_front_face)
             .finish_non_exhaustive()
     }
 }
 
-/// Determines whether the ray is hitting the front or back face of an object,
-/// and produces the unit normal vector for that face.
-///
-/// Assumes that `outward_normal` is a unit vector that points outwards from
-/// the object's front face.
-pub fn face_normal(ray: &Ray, outward_normal: Vec3) -> (Face, Vec3) {
-    let is_front_face = ray.direction.dot(&outward_normal) < 0.0;
-    if is_front_face {
-        (Face::Front, outward_normal)
-    } else {
-        (Face::Back, -outward_normal)
-    }
+/// Determines whether the ray is hitting the front face of an object with the
+/// given normal vector.
+pub fn hitting_front_face(ray: &Ray, outward_normal: &Vec3) -> bool {
+    ray.direction.dot(outward_normal) < 0.0
 }
 
 /// Objects that can interact with ("hit") light rays.

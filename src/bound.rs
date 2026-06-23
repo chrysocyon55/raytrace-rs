@@ -59,18 +59,15 @@ impl Interval {
         self.start < x && x < self.end
     }
 
-    /// Produces a new interval by expanding the size of this interval by a
-    /// given delta.
+    /// Expands the size of this interval by a given width.
     ///
     /// The expansion is performed by moving the upper and lower bounds apart
     /// by half of `delta`, resulting in the interval's size increasing by
     /// `delta` overall.
-    pub const fn expand(&self, delta: f64) -> Self {
+    pub const fn expand_by(&mut self, delta: f64) {
         let padding = delta / 2.0;
-        Self {
-            start: self.start - padding,
-            end: self.end + padding,
-        }
+        self.start -= padding;
+        self.end += padding;
     }
 }
 
@@ -206,6 +203,20 @@ impl BoundingBox {
             }
         }
         Some(intersect_time)
+    }
+
+    /// Expands any zero-width dimensions of this bounding box to a small fixed
+    /// width.
+    /// This should be used to avoid to avoid producing any zero-volume
+    /// bounding boxes (e.g. for flat planes), which may cause issues when
+    /// computing ray intersections.
+    pub fn pad_to_minimums(&mut self) {
+        const MINIMUM: f64 = 0.0001;
+        for axis in [&mut self.x, &mut self.y, &mut self.z] {
+            if axis.size() == 0.0 {
+                axis.expand_by(MINIMUM);
+            }
+        }
     }
 }
 

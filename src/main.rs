@@ -3,20 +3,20 @@
 
 mod bound;
 mod camera;
+mod geo;
 mod hit;
 mod material;
 mod ray;
 mod scene;
-mod sphere;
 mod vec3;
 
 use rand::{self, RngExt};
 
 use crate::camera::{Camera, CameraParams};
+use crate::geo::Sphere;
 use crate::hit::Hit;
 use crate::material::{Dielectric, Lambertian, Material, Metal};
 use crate::scene::SceneTree;
-use crate::sphere::Sphere;
 use crate::vec3::Vec3;
 
 /// Allocate a new static reference on the heap.

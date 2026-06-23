@@ -2,7 +2,7 @@
 
 use rand::{self, RngExt};
 
-use crate::hit::{Face, HitInfo};
+use crate::hit::HitInfo;
 use crate::ray::Ray;
 use crate::vec3::{ColorVec3, Vec3};
 
@@ -132,7 +132,7 @@ impl Dielectric {
 
 impl Material for Dielectric {
     fn scatter(&self, ray: &Ray, hit_info: &HitInfo) -> Option<(ColorVec3, Ray)> {
-        let refraction_ratio = if hit_info.face == Face::Front {
+        let refraction_ratio = if hit_info.is_front_face {
             1.0 / self.refraction_index
         } else {
             self.refraction_index
