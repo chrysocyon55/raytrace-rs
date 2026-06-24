@@ -183,9 +183,8 @@ impl<'mat> Hit for Quad<'mat> {
         // A point is on an infinite plane iff it is perpendicular to the plane's
         // normal (relative to another point on the plane), which happens only when
         // its dot product with the normal vector is 0.
-        // Let n := u x v be the canonical normal vector to the quad.
         // We know that the quad's origin (Q) is always a point on the plane, so for
-        // some point P.
+        // some point P and any normal vector n:
         //  n . (P - Q) = 0
         //  (n . P) - (n . Q) = 0
         //  n . P = n . Q
@@ -202,14 +201,14 @@ impl<'mat> Hit for Quad<'mat> {
         // (except when the rays is parallel to the plane, where (n . d) is zero and
         // we can just record a miss).
         // We can replace n with the unit normal here, since scaling n changes the
-        // numerator and denominator of t by the same amount, leaving t unchanged.
+        // numerator and denominator by the same amount, leaving t unchanged.
         let denominator = self.unit_normal.dot(&ray.direction);
         const PARALLEL_THRESHOLD: f64 = 1e-8;
-        if denominator < PARALLEL_THRESHOLD {
+        if denominator.abs() < PARALLEL_THRESHOLD {
             // The ray is parallel to the plane, so it cannot intersect the quad.
             return None;
         }
-        let time = self.unit_normal.dot(&(self.origin - ray.direction)) / denominator;
+        let time = self.unit_normal.dot(&(self.origin - ray.origin)) / denominator;
         if !ray_time.contains_inclusive(time) {
             return None;
         }
@@ -230,6 +229,7 @@ impl<'mat> Hit for Quad<'mat> {
         //  v x p = a(v x u) + b(v x v)
         //  v x p = a(v x u)
         //  v x p = -a(u x v)
+        // Let n be the normal vector n := u x v. Then:
         //  v x p = -an
         //  p x v = an
         // Similarly,
@@ -270,5 +270,38 @@ impl<'mat> Hit for Quad<'mat> {
 
     fn bounds(&self) -> &BoundingBox {
         &self.bound
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::hit::Face;
+    use crate::material::Lambertian;
+
+    #[test]
+    fn quad_ray_intersections() {
+        static GREY: Lambertian = Lambertian::new(Vec3([0.6, 0.6, 0.6]), 1.0);
+        // Axis-aligned quad in the z = -2 plane.
+        let quad = Quad::new(
+            Vec3::new(-1, -1, -2),
+            (Vec3::new(2, 0, 0), Vec3::new(0, 2, 0)),
+            &GREY,
+        );
+        assert!(quad.bounds().x().size() > 0.0);
+        assert!(quad.bounds().y().size() > 0.0);
+        assert!(quad.bounds().z().size() > 0.0);
+        // Axis-aligned ray travelling in the -z direction.
+        let ray = Ray {
+            origin: Vec3::new(0, 0, 5),
+            direction: Vec3::new(0, 0, -1),
+        };
+        let Some(hit_info) = quad.hit(&ray, &Interval::universal()) else {
+            panic!("failed to hit quad");
+        };
+        assert_eq!(hit_info.hit_point, Vec3::new(0, 0, -2));
+        assert_eq!(hit_info.time, 7.0);
+        assert_eq!(hit_info.face, Face::Front);
+        assert_eq!(hit_info.normal, Vec3::new(0, 0, 1));
     }
 }

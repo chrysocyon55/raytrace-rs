@@ -44,7 +44,7 @@ impl Interval {
 
     /// Returns the size of this interval.
     pub const fn size(&self) -> f64 {
-        (self.end - self.start).min(0.0)
+        (self.end - self.start).max(0.0)
     }
 
     /// Determines whether the given value is part of this interval,
@@ -205,16 +205,17 @@ impl BoundingBox {
         Some(intersect_time)
     }
 
-    /// Expands any zero-width dimensions of this bounding box to a small fixed
-    /// width.
+    /// Expands any zero-width (or near-zero-width) dimensions of this bounding
+    /// box to a small fixed width.
     /// This should be used to avoid to avoid producing any zero-volume
     /// bounding boxes (e.g. for flat planes), which may cause issues when
     /// computing ray intersections.
     pub fn pad_to_minimums(&mut self) {
         const MINIMUM: f64 = 0.0001;
         for axis in [&mut self.x, &mut self.y, &mut self.z] {
-            if axis.size() == 0.0 {
-                axis.expand_by(MINIMUM);
+            let size = axis.size();
+            if size < MINIMUM {
+                axis.expand_by(MINIMUM - size);
             }
         }
     }
@@ -257,5 +258,12 @@ mod tests {
         };
         assert_eq!(collide.start, 1.0);
         assert_eq!(collide.end, 3.0);
+    }
+
+    #[test]
+    fn interval_expansion() {
+        let mut ival = Interval { start: 0.0, end: 2.0 };
+        ival.expand_by(1.0);
+        assert_eq!(ival.start, -0.5);
     }
 }

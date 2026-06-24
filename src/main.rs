@@ -99,7 +99,7 @@ fn render_ball_field() {
 fn render_quad_test() {
     let camera = Camera::with_parameters(&CameraParams {
         aspect_ratio: 1.0, // square
-        image_width: 1080,
+        image_width: 800,
         position: Vec3([0.0, 0.0, 9.0]),
         view_target: Vec3([0.0, 0.0, 0.0]),
         vertical_fov: 80.0,
@@ -110,9 +110,9 @@ fn render_quad_test() {
 
     static RED: Lambertian = Lambertian::new(Vec3([1.0, 0.2, 0.2]), 1.0);
     static GREEN: Lambertian = Lambertian::new(Vec3([0.2, 1.0, 0.2]), 1.0);
-    static BLUE: Lambertian = Lambertian::new(Vec3([0.2, 0.3, 1.0]), 1.0);
+    static BLUE: Lambertian = Lambertian::new(Vec3([0.1, 0.2, 1.0]), 1.0);
     static ORANGE: Lambertian = Lambertian::new(Vec3([1.0, 0.75, 0.1]), 1.0);
-    static CYAN: Lambertian = Lambertian::new(Vec3([0.1, 0.8, 0.8]), 1.0);
+    static CYAN: Lambertian = Lambertian::new(Vec3([0.0, 0.8, 0.9]), 1.0);
 
     let world = SceneTree::new(vec![
         Box::new(Quad::new(
@@ -126,7 +126,7 @@ fn render_quad_test() {
             &GREEN,
         )),
         Box::new(Quad::new(
-            Vec3::new(3, -1, 1),
+            Vec3::new(3, -2, 1),
             (Vec3::new(0, 0, 4), Vec3::new(0, 4, 0)),
             &BLUE,
         )),
@@ -136,7 +136,7 @@ fn render_quad_test() {
             &ORANGE,
         )),
         Box::new(Quad::new(
-            Vec3::new(-2, -3, -5),
+            Vec3::new(-2, -3, 5),
             (Vec3::new(4, 0, 0), Vec3::new(0, 0, -4)),
             &CYAN,
         )),
@@ -146,6 +146,6 @@ fn render_quad_test() {
 }
 
 fn main() {
-    render_ball_field();
-    // render_quad_test();
+    // render_ball_field();
+    render_quad_test();
 }
