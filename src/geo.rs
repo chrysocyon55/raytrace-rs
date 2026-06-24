@@ -96,14 +96,14 @@ impl<'mat> Hit for Sphere<'mat> {
             }
         };
         let hit_point = ray.at_time(time);
-        let normal = (hit_point - self.center) / self.radius; // unit normal
-        let is_front_face = hit::hitting_front_face(ray, &normal);
+        let unit_normal = (hit_point - self.center) / self.radius;
+        let (face, normal) = hit::face_normal(ray, unit_normal);
 
         Some(HitInfo {
             hit_point,
             normal,
             time,
-            is_front_face,
+            face,
             material: self.material,
         })
     }
@@ -141,7 +141,7 @@ impl<'mat> Quad<'mat> {
     /// `span` is the offset from `origin` to its adjacent vertices. The front
     /// face of the quad will be the face where the span vectors are in
     /// clockwise order.
-    fn new(origin: Vec3, span: (Vec3, Vec3), material: &'mat (dyn Material + Sync)) -> Self {
+    pub fn new(origin: Vec3, span: (Vec3, Vec3), material: &'mat (dyn Material + Sync)) -> Self {
         let (u, v) = span;
         let n = u.cross(&v);
         let w = n / n.dot(&n);
@@ -257,13 +257,13 @@ impl<'mat> Hit for Quad<'mat> {
         if !(0.0..=1.0).contains(&b) {
             return None;
         }
-        let is_front_face = hit::hitting_front_face(ray, &self.unit_normal);
+        let (face, normal) = hit::face_normal(ray, self.unit_normal);
 
         Some(HitInfo {
             hit_point,
-            normal: self.unit_normal,
+            normal,
             time,
-            is_front_face,
+            face,
             material: self.material,
         })
     }

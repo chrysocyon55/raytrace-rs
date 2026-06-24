@@ -10,8 +10,12 @@ use rand::{self, RngExt};
 pub struct Vec3(pub [f64; 3]);
 
 impl Vec3 {
+    pub fn new(x: impl Into<f64>, y: impl Into<f64>, z: impl Into<f64>) -> Self {
+        Self([x.into(), y.into(), z.into()])
+    }
+
     /// Constructs a new zero vector.
-    pub const fn new() -> Self {
+    pub const fn zero() -> Self {
         Self([0.0; 3])
     }
 
@@ -194,7 +198,7 @@ impl Vec3 {
 impl Default for Vec3 {
     /// Constructs a new zero vector.
     fn default() -> Self {
-        Self::new()
+        Self::zero()
     }
 }
 

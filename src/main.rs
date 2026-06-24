@@ -13,7 +13,7 @@ mod vec3;
 use rand::{self, RngExt};
 
 use crate::camera::{Camera, CameraParams};
-use crate::geo::Sphere;
+use crate::geo::{Quad, Sphere};
 use crate::hit::Hit;
 use crate::material::{Dielectric, Lambertian, Material, Metal};
 use crate::scene::SceneTree;
@@ -24,8 +24,9 @@ fn new_static<T>(x: T) -> &'static T {
     Box::leak(Box::new(x))
 }
 
-fn main() {
-    const RENDER_FULL_SCENE: bool = true;
+#[allow(unused)]
+fn render_ball_field() {
+    const RENDER_FULL_SCENE: bool = false;
 
     let camera = Camera::with_parameters(&CameraParams {
         position: Vec3([13.0, 2.0, 4.0]),
@@ -34,7 +35,7 @@ fn main() {
         defocus_angle: 0.4,
         focus_dist: 11.0,
         samples: if RENDER_FULL_SCENE { 500 } else { 50 },
-        max_depth: if RENDER_FULL_SCENE { 50 } else { 25 },
+        max_depth: if RENDER_FULL_SCENE { 100 } else { 25 },
         ..Default::default()
     });
 
@@ -92,4 +93,59 @@ fn main() {
 
     let scene = SceneTree::new(world);
     camera.render(&scene, "./output.png");
+}
+
+#[allow(unused)]
+fn render_quad_test() {
+    let camera = Camera::with_parameters(&CameraParams {
+        aspect_ratio: 1.0, // square
+        image_width: 1080,
+        position: Vec3([0.0, 0.0, 9.0]),
+        view_target: Vec3([0.0, 0.0, 0.0]),
+        vertical_fov: 80.0,
+        samples: 50,
+        max_depth: 20,
+        ..Default::default()
+    });
+
+    static RED: Lambertian = Lambertian::new(Vec3([1.0, 0.2, 0.2]), 1.0);
+    static GREEN: Lambertian = Lambertian::new(Vec3([0.2, 1.0, 0.2]), 1.0);
+    static BLUE: Lambertian = Lambertian::new(Vec3([0.2, 0.3, 1.0]), 1.0);
+    static ORANGE: Lambertian = Lambertian::new(Vec3([1.0, 0.75, 0.1]), 1.0);
+    static CYAN: Lambertian = Lambertian::new(Vec3([0.1, 0.8, 0.8]), 1.0);
+
+    let world = SceneTree::new(vec![
+        Box::new(Quad::new(
+            Vec3::new(-3, -2, 5),
+            (Vec3::new(0, 0, -4), Vec3::new(0, 4, 0)),
+            &RED,
+        )),
+        Box::new(Quad::new(
+            Vec3::new(-2, -2, 0),
+            (Vec3::new(4, 0, 0), Vec3::new(0, 4, 0)),
+            &GREEN,
+        )),
+        Box::new(Quad::new(
+            Vec3::new(3, -1, 1),
+            (Vec3::new(0, 0, 4), Vec3::new(0, 4, 0)),
+            &BLUE,
+        )),
+        Box::new(Quad::new(
+            Vec3::new(-2, 3, 1),
+            (Vec3::new(4, 0, 0), Vec3::new(0, 0, 4)),
+            &ORANGE,
+        )),
+        Box::new(Quad::new(
+            Vec3::new(-2, -3, -5),
+            (Vec3::new(4, 0, 0), Vec3::new(0, 0, -4)),
+            &CYAN,
+        )),
+    ]);
+
+    camera.render(&world, "./output.png");
+}
+
+fn main() {
+    render_ball_field();
+    // render_quad_test();
 }

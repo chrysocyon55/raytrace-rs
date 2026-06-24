@@ -43,8 +43,8 @@ static DEFAULT_PARAMS: CameraParams = CameraParams {
     vertical_fov: 90.0,
     defocus_angle: 0.0,
     focus_dist: 1.0,
-    samples: 30,
-    max_depth: 15,
+    samples: 100,
+    max_depth: 30,
 };
 
 impl Default for CameraParams {
@@ -184,7 +184,7 @@ impl Camera {
         // colors.
         let pixel_color = |px_col, px_row| -> Rgb<u8> {
             let mut rng = rand::rng();
-            let mut total_color = ColorVec3::new();
+            let mut total_color = ColorVec3::zero();
             let px_offset_u = px_col as f64 * self.step_u;
             let px_offset_v = px_row as f64 * self.step_v;
             let px_topleft = self.viewport_origin + px_offset_u + px_offset_v;
