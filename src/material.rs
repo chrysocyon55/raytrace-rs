@@ -8,13 +8,23 @@ use crate::vec3::{ColorVec3, Vec3};
 
 /// A trait for surface materials that scatter, reflect, or absorb light.
 pub trait Material {
-    /// Scatter the given light ray off of this surface according to its
-    /// properties.
+    /// Returns the outcome of scattering a light ray off of this surface,
+    /// according to its material properties.
     ///
     /// If the ray is completely absorbed by the surface, returns `None`.
     /// Otherwise, returns `Some` containing the attenuated color and the
     /// direction of the scattered ray.
     fn scatter(&self, ray: &Ray, hit_info: &HitInfo) -> Option<(ColorVec3, Ray)>;
+
+    /// Returns the light emitted by this surface when struck by a ray at the
+    /// given point.
+    ///
+    /// By default, this returns pure black, which is correct for materials
+    /// that do not emit any light. This method should only be implemented for
+    /// materials that emit their own light.
+    fn emitted(&self) -> ColorVec3 {
+        ColorVec3::zero()
+    }
 }
 
 /// A Lambertian diffuse material that either absorbs or randomly scatters
@@ -111,8 +121,8 @@ impl Material for Metal {
     }
 }
 
+/// A Transparent dielectric material that refracts light.
 #[derive(Debug, Clone, Copy, PartialEq)]
-/// Transparent dielectric materials that refract light.
 pub struct Dielectric {
     /// This material's index of refraction, relative to the surrounding
     /// medium.
@@ -174,5 +184,30 @@ impl Material for Dielectric {
         };
         const WHITE: ColorVec3 = Vec3([1.0; _]);
         Some((WHITE, output_ray))
+    }
+}
+
+/// An emissive light material.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct DiffuseLight {
+    color: ColorVec3,
+}
+
+impl DiffuseLight {
+    /// Constructs a new diffuse light material that emits light of the given
+    /// color.
+    pub const fn new(color: ColorVec3) -> Self {
+        Self { color }
+    }
+}
+
+impl Material for DiffuseLight {
+    fn scatter(&self, _ray: &Ray, _hit_info: &HitInfo) -> Option<(ColorVec3, Ray)> {
+        // This material emits its own light; it absorbs all incoming rays.
+        None
+    }
+
+    fn emitted(&self) -> ColorVec3 {
+        self.color
     }
 }

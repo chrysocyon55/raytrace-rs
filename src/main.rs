@@ -15,9 +15,9 @@ use rand::{self, RngExt};
 use crate::camera::{Camera, CameraParams};
 use crate::geo::{Quad, Sphere};
 use crate::hit::Hit;
-use crate::material::{Dielectric, Lambertian, Material, Metal};
+use crate::material::{Dielectric, DiffuseLight, Lambertian, Material, Metal};
 use crate::scene::SceneTree;
-use crate::vec3::Vec3;
+use crate::vec3::{ColorVec3, Vec3};
 
 /// Allocate a new static reference on the heap.
 fn new_static<T>(x: T) -> &'static T {
@@ -92,11 +92,11 @@ fn render_ball_field() {
     world.extend(center_spheres);
 
     let scene = SceneTree::new(world);
-    camera.render(&scene, "./output.png");
+    camera.render(&scene, "./ball-field.png");
 }
 
 #[allow(unused)]
-fn render_quad_test() {
+fn render_quads() {
     let camera = Camera::with_parameters(&CameraParams {
         aspect_ratio: 1.0, // square
         image_width: 800,
@@ -142,10 +142,39 @@ fn render_quad_test() {
         )),
     ]);
 
-    camera.render(&world, "./output.png");
+    camera.render(&world, "./quads.png");
+}
+
+#[allow(unused)]
+fn render_emission_test() {
+    let camera = Camera::with_parameters(&CameraParams {
+        position: Vec3::new(26, 3, 6),
+        view_target: Vec3::new(0, 2, 0),
+        vertical_fov: 20.0,
+        samples: 500,
+        max_depth: 50,
+        background_color: ColorVec3::zero(),
+        ..Default::default()
+    });
+
+    const GREY: Lambertian = Lambertian::new(Vec3([0.6, 0.6, 0.6]), 1.0);
+    let ground = Sphere::new(Vec3::new(0, -1000, 0), 1000.0, &GREY);
+    let subject = Sphere::new(Vec3::new(0, 2, 0), 2.0, &GREY);
+    // The diffuse light is stronger than (1.0, 1.0, 1.0) so that it lights
+    // the scene even after the ray bounding several times.
+    const LIGHT_MAT: DiffuseLight = DiffuseLight::new(Vec3([4.0, 4.0, 4.0]));
+    let light = Quad::new(
+        Vec3::new(3, 1, -2),
+        (Vec3::new(2, 0, 0), Vec3::new(0, 2, 0)),
+        &LIGHT_MAT,
+    );
+
+    let world = SceneTree::new(vec![Box::new(ground), Box::new(subject), Box::new(light)]);
+    camera.render(&world, "./diffuse-light.png");
 }
 
 fn main() {
     // render_ball_field();
-    render_quad_test();
+    // render_quads();
+    render_emission_test();
 }

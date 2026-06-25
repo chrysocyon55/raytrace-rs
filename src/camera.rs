@@ -32,19 +32,25 @@ pub struct CameraParams {
     pub samples: usize,
     /// Maximum recursion depth for bounce light.
     pub max_depth: usize,
+    /// The background color of the scene.
+    pub background_color: ColorVec3,
 }
 
 /// Default camera parameters.
-static DEFAULT_PARAMS: CameraParams = CameraParams {
+const DEFAULT_PARAMS: CameraParams = CameraParams {
     image_width: 1920,
     aspect_ratio: 16.0 / 9.0,
-    position: Vec3([0.0, 0.0, 0.0]),
+    position: Vec3::zero(),
     view_target: Vec3([0.0, 0.0, -1.0]),
     vertical_fov: 90.0,
     defocus_angle: 0.0,
     focus_dist: 1.0,
     samples: 100,
     max_depth: 30,
+    background_color: {
+        const SKY_BLUE: ColorVec3 = Vec3([0.7, 0.8, 1.0]);
+        SKY_BLUE
+    },
 };
 
 impl Default for CameraParams {
@@ -73,6 +79,8 @@ pub struct Camera {
     samples: usize,
     /// Maximum recursion depth for bounce light.
     max_depth: usize,
+    /// The background color of the scene.
+    background_color: ColorVec3,
 }
 
 const fn degrees_to_radians(deg: f64) -> f64 {
@@ -97,6 +105,7 @@ impl Camera {
             focus_dist,
             samples,
             max_depth,
+            background_color,
         } = params;
         assert!(aspect_ratio > 0.0, "aspect ratio must be positive");
         assert!(vertical_fov > 0.0, "vertical FOV must be positive");
@@ -151,12 +160,16 @@ impl Camera {
             defocus_basis,
             samples,
             max_depth,
+            background_color,
         }
     }
 
     /// Render the given objects using this camera, saving the resulting image
     /// at the given path.
-    pub fn render<H: Hit + Sync>(&self, world: &H, path: impl AsRef<Path>) {
+    pub fn render<H>(&self, world: &H, path: impl AsRef<Path>)
+    where
+        H: Hit + Sync + ?Sized,
+    {
         // Counters for tracking render progress.
         let col_px_counter = Mutex::new(0);
         let row_px_counter = Mutex::new(0);
@@ -209,7 +222,7 @@ impl Camera {
                     origin: ray_origin,
                     direction: ray_direction,
                 };
-                total_color += ray_color(&ray, self.max_depth, world);
+                total_color += self.ray_color(&ray, self.max_depth, world);
             }
             let avg_color = total_color / self.samples as f64;
             let corrected_color = linear_to_gamma(avg_color);
@@ -232,47 +245,52 @@ impl Camera {
         println!("Render complete. ({minutes} min {seconds} sec)");
         println!("Saved output image as {}", &path.as_ref().display());
     }
+
+    /// Returns the pixel color associated with a given ray as a color vector.
+    fn ray_color<H>(&self, ray: &Ray, depth: usize, world: &H) -> ColorVec3
+    where
+        H: Hit + ?Sized,
+    {
+        const BLACK: ColorVec3 = ColorVec3::zero();
+        if depth == 0 {
+            // If the maximum recursion depth has been reached, the ray "fizzles"
+            // and returns pure black.
+            return BLACK;
+        }
+
+        // Check for collisions with objects in the scene:
+        // We ignore collisions that happen almost immediately, since they are
+        // likely rays incorrectly intersecting with the surfaces they just
+        // bounced off of, due to floating point imprecision. This prevents
+        // "shadow acne", where such rays would produce isolated dark pixels due
+        // to repeated in-place collisions.
+        if let Some(collision) = world.hit(ray, &(0.001, f64::INFINITY).into()) {
+            // Get the emissive color of this surface:
+            let emission_color = collision.material.emitted();
+            // Determine whether the ray is absorbed or reflected:
+            if let Some((curr_color, scattered_ray)) = collision.material.scatter(ray, &collision) {
+                // Get the total color of this ray recursively.
+                let total_scatter_color =
+                    curr_color * self.ray_color(&scattered_ray, depth - 1, world);
+                // The returned color is the combination of the scatter color with the
+                // surface's emitted color.
+                emission_color + total_scatter_color
+            } else {
+                // If the surface absorbs the ray, the only color left is its emitted
+                // color.
+                emission_color
+            }
+        } else {
+            // If the ray doesn't hit any objects, return the background color.
+            self.background_color
+        }
+    }
 }
 
 impl Default for Camera {
     fn default() -> Self {
         Self::new()
     }
-}
-
-/// Returns the pixel color associated with a given ray as a color vector.
-fn ray_color<H: Hit + ?Sized>(ray: &Ray, depth: usize, world: &H) -> ColorVec3 {
-    if depth == 0 {
-        // If the maximum recursion depth has been reached, the ray "fizzles"
-        // and returns pure black.
-        const BLACK: Vec3 = Vec3([0.0; _]);
-        return BLACK;
-    }
-
-    // Check for collisions with objects in the scene:
-    // We ignore collisions that happen almost immediately, since they are
-    // likely rays incorrectly intersecting with the surfaces they just
-    // bounced off of, due to floating point imprecision. This prevents
-    // "shadow acne", where such rays would produce isolated dark pixels due
-    // to repeated in-place collisions.
-    if let Some(collision) = world.hit(ray, &(0.001, f64::INFINITY).into()) {
-        // Determine whether the ray is absorbed or reflected:
-        if let Some((color, scattered_ray)) = collision.material.scatter(ray, &collision) {
-            return color * ray_color(&scattered_ray, depth - 1, world);
-        } else {
-            // Absorbed rays cause the area to appear perfectly black.
-            const BLACK: ColorVec3 = Vec3([0.0; _]);
-            return BLACK;
-        }
-    }
-
-    // If the ray doesn't hit any objects, draw the sky using a gradient.
-    // Lerp from white to blue as the y component of the ray increases:
-    let unit_dir = ray.direction.normalized();
-    const SKY_WHITE: Vec3 = Vec3([1.0, 1.0, 1.0]);
-    const SKY_BLUE: Vec3 = Vec3([0.5, 0.7, 1.0]);
-    let blend = 0.5 * (unit_dir.y() + 1.0);
-    (1.0 - blend) * SKY_WHITE + blend * SKY_BLUE
 }
 
 /// Performs gamma correction on a color vector.
@@ -293,8 +311,9 @@ fn linear_to_gamma(v: ColorVec3) -> ColorVec3 {
 
 /// Converts a real color vector into an RGB value.
 ///
-/// The vector's components are intended to be within the interval [0.0, 1.0],
-/// and will be clamped otherwise.
+/// Components are mapped from the interval [0.0, 1.0] onto the interval
+/// [0, 255]. Any real color components that are less than `0.0` or greater
+/// than `1.0` will be clamped to `0` and `255` respectively.
 fn to_rgb(v: ColorVec3) -> Rgb<u8> {
     Rgb(v.0.map(|component| (component * 255.0) as u8))
 }
