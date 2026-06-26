@@ -303,7 +303,6 @@ impl<'mat> Hit for Quad<'mat> {
 }
 
 /// A wrapper around a collider that translates it by the given amount.
-#[allow(unused)]
 pub struct Translate<H> {
     obj: H,
     offset: Vec3,
@@ -313,7 +312,6 @@ pub struct Translate<H> {
 impl<H: Hit> Translate<H> {
     /// Constructs a translated instance of a given object, offset by the given
     /// vector.
-    #[allow(unused)]
     pub fn new(obj: H, offset: Vec3) -> Self {
         let bounds = obj.bounds() + &offset;
         Self {
