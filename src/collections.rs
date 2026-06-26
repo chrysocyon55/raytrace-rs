@@ -13,12 +13,12 @@ use crate::ray::Ray;
 /// for scenes with many objects.
 #[allow(dead_code)]
 #[derive(Default)]
-pub struct SceneList {
+pub struct ObjList {
     objects: Vec<Box<dyn Hit>>,
     bounds: BoundingBox,
 }
 
-impl SceneList {
+impl ObjList {
     /// Constructs a new empty scene.
     pub fn new() -> Self {
         Default::default()
@@ -32,7 +32,7 @@ impl SceneList {
     }
 }
 
-impl FromIterator<Box<dyn Hit>> for SceneList {
+impl FromIterator<Box<dyn Hit>> for ObjList {
     fn from_iter<I: IntoIterator<Item = Box<dyn Hit>>>(iter: I) -> Self {
         let mut scene = Self::new();
         for obj in iter.into_iter() {
@@ -42,7 +42,7 @@ impl FromIterator<Box<dyn Hit>> for SceneList {
     }
 }
 
-impl Hit for SceneList {
+impl Hit for ObjList {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
         // Iterate over each hittable object in the scene, returning the hit
@@ -65,17 +65,17 @@ impl Hit for SceneList {
 
 /// A hierarchical collection of hittable objects that efficiently computes
 /// ray intersections.
-pub enum SceneTree {
+pub enum ObjTree {
     Empty,
     Leaf(Box<dyn Hit + Sync>),
     Tree {
-        left: Box<SceneTree>,
-        right: Box<SceneTree>,
+        left: Box<ObjTree>,
+        right: Box<ObjTree>,
         bound: BoundingBox,
     },
 }
 
-impl SceneTree {
+impl ObjTree {
     /// Constructs a new scene tree over a list of hittable objects.
     pub fn new(mut objects: Vec<Box<dyn Hit + Sync>>) -> Self {
         if objects.is_empty() {
@@ -119,7 +119,7 @@ impl SceneTree {
     }
 }
 
-impl Hit for SceneTree {
+impl Hit for ObjTree {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         match self {
             // A tree containing no objects can never be hit.

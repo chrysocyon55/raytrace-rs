@@ -3,6 +3,7 @@
 use std::fmt::{self, Debug};
 
 use crate::bound::{BoundingBox, Interval};
+use crate::collections::ObjList;
 use crate::hit::{self, Hit, HitInfo};
 use crate::material::Material;
 use crate::ray::Ray;
@@ -162,6 +163,11 @@ impl<'mat> Quad<'mat> {
             material,
             bound,
         }
+    }
+
+    /// Constructs a new axis-aligned cuboid with the given opposite corners.
+    pub fn new_cuboid(corners: (Vec3, Vec3), material: &'mat (dyn Material + Sync)) -> ObjList {
+        todo!()
     }
 }
 

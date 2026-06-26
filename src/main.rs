@@ -3,20 +3,20 @@
 
 mod bound;
 mod camera;
-mod geo;
+mod collections;
 mod hit;
 mod material;
+mod prim;
 mod ray;
-mod scene;
 mod vec3;
 
 use rand::{self, RngExt};
 
 use crate::camera::{Camera, CameraParams};
-use crate::geo::{Quad, Sphere};
+use crate::collections::ObjTree;
 use crate::hit::Hit;
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Material, Metal};
-use crate::scene::SceneTree;
+use crate::prim::{Quad, Sphere};
 use crate::vec3::{ColorVec3, Vec3};
 
 /// Allocate a new static reference on the heap.
@@ -91,7 +91,7 @@ fn render_ball_field() {
     ];
     world.extend(center_spheres);
 
-    let scene = SceneTree::new(world);
+    let scene = ObjTree::new(world);
     camera.render(&scene, "./ball-field.png");
 }
 
@@ -114,7 +114,7 @@ fn render_quads() {
     static ORANGE: Lambertian = Lambertian::new(Vec3([1.0, 0.75, 0.1]), 1.0);
     static CYAN: Lambertian = Lambertian::new(Vec3([0.0, 0.8, 0.9]), 1.0);
 
-    let world = SceneTree::new(vec![
+    let world = ObjTree::new(vec![
         Box::new(Quad::new(
             Vec3::new(-3, -2, 5),
             (Vec3::new(0, 0, -4), Vec3::new(0, 4, 0)),
@@ -151,7 +151,7 @@ fn render_emission_test() {
         position: Vec3::new(26, 3, 6),
         view_target: Vec3::new(0, 2, 0),
         vertical_fov: 20.0,
-        samples: 500,
+        samples: 300,
         max_depth: 50,
         background_color: ColorVec3::zero(),
         ..Default::default()
@@ -162,14 +162,14 @@ fn render_emission_test() {
     let subject = Sphere::new(Vec3::new(0, 2, 0), 2.0, &GREY);
     // The diffuse light is stronger than (1.0, 1.0, 1.0) so that it lights
     // the scene even after the ray bounding several times.
-    const LIGHT_MAT: DiffuseLight = DiffuseLight::new(Vec3([4.0, 4.0, 4.0]));
+    const LIGHT_MAT: DiffuseLight = DiffuseLight::new(Vec3([0.0, 4.0, 4.0]));
     let light = Quad::new(
         Vec3::new(3, 1, -2),
         (Vec3::new(2, 0, 0), Vec3::new(0, 2, 0)),
         &LIGHT_MAT,
     );
 
-    let world = SceneTree::new(vec![Box::new(ground), Box::new(subject), Box::new(light)]);
+    let world = ObjTree::new(vec![Box::new(ground), Box::new(subject), Box::new(light)]);
     camera.render(&world, "./diffuse-light.png");
 }
 
