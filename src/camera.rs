@@ -83,7 +83,8 @@ pub struct Camera {
     background_color: ColorVec3,
 }
 
-const fn degrees_to_radians(deg: f64) -> f64 {
+/// Convert an angle measure from degrees to radians.
+pub const fn degrees_to_radians(deg: f64) -> f64 {
     deg * std::f64::consts::PI / 180.0
 }
 

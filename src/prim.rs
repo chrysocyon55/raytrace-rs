@@ -2,7 +2,10 @@
 
 use std::fmt::{self, Debug};
 
+use itertools::Itertools;
+
 use crate::bound::{BoundingBox, Interval};
+use crate::camera;
 use crate::collections::ObjList;
 use crate::hit::{self, Hit, HitInfo};
 use crate::material::Material;
@@ -300,6 +303,7 @@ impl<'mat> Hit for Quad<'mat> {
 }
 
 /// A wrapper around a collider that translates it by the given amount.
+#[allow(unused)]
 pub struct Translate<H> {
     obj: H,
     offset: Vec3,
@@ -309,6 +313,7 @@ pub struct Translate<H> {
 impl<H: Hit> Translate<H> {
     /// Constructs a translated instance of a given object, offset by the given
     /// vector.
+    #[allow(unused)]
     pub fn new(obj: H, offset: Vec3) -> Self {
         let bounds = obj.bounds() + &offset;
         Self {
@@ -321,7 +326,8 @@ impl<H: Hit> Translate<H> {
 
 impl<H: Hit> Hit for Translate<H> {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
-        // Offset the ray in the opposite direction to the instance's offset:
+        // Offset the ray in the opposite direction to the instance's offset
+        // (convert from world coordinates to instance coordinates):
         let offset_ray = Ray {
             origin: ray.origin - self.offset,
             direction: ray.direction,
@@ -329,8 +335,10 @@ impl<H: Hit> Hit for Translate<H> {
         // Check if the translated ray hits the inner object:
         let mut hit_info = self.obj.hit(&offset_ray, ray_time)?;
         // If it does, then translate the hit point back to compensate for the ray's
-        // offset:
+        // offset (convert from instance coordinates to world coordinates):
         hit_info.hit_point += self.offset;
+        // Translation does not affect the direction of the object's normals, so the
+        // normal vector is returned unchanged.
         Some(hit_info)
     }
 
@@ -348,16 +356,82 @@ pub struct RotateY<H> {
 }
 
 impl<H: Hit> RotateY<H> {
-    /// Constructs a rotated instance of the given object, rotate by the provided
-    /// angle (in degrees).
-    fn new(obj: H, angle: f64) -> Self {
-        todo!()
+    /// Converts a vector's x and z coordinates from world space to object space.
+    const fn to_obj_space(x: f64, z: f64, sin_theta: f64, cos_theta: f64) -> (f64, f64) {
+        (
+            (x * cos_theta - z * sin_theta),
+            (z * cos_theta + x * sin_theta),
+        )
+    }
+
+    /// Converts a vector's x and z coordinates from object space to world space.
+    const fn to_world_space(x: f64, z: f64, sin_theta: f64, cos_theta: f64) -> (f64, f64) {
+        (
+            (x * cos_theta + z * sin_theta),
+            (z * cos_theta - x * sin_theta),
+        )
+    }
+
+    /// Constructs an instance of the given object, rotated about the positive
+    /// y-axis by a given angle (in degrees).
+    pub fn new(obj: H, angle: f64) -> Self {
+        let radians = camera::degrees_to_radians(angle);
+        let sin_theta = radians.sin();
+        let cos_theta = radians.cos();
+        // Examine all eight corners of the object's bounding box after it is rotated,
+        // and construct a bounding box in the world coordinate system that encloses
+        // it.
+        let original_bounds = obj.bounds();
+        let (x_min, x_max) = original_bounds.x().into();
+        let (z_min, z_max) = original_bounds.z().into();
+        let extrema = [x_min, z_min].into_iter().cartesian_product([x_max, z_max]);
+        let mut x_bounds = Interval::empty();
+        let mut z_bounds = Interval::empty();
+        for (x, z) in extrema {
+            let (rot_x, rot_z) = Self::to_obj_space(x, z, sin_theta, cos_theta);
+            x_bounds.start = x_bounds.start.min(rot_x);
+            x_bounds.end = x_bounds.end.max(rot_x);
+            z_bounds.start = z_bounds.end.min(rot_z);
+            z_bounds.end = z_bounds.end.max(rot_z);
+        }
+        let bounds = BoundingBox::new(x_bounds, original_bounds.y(), z_bounds);
+        Self {
+            obj,
+            sin_theta,
+            cos_theta,
+            bounds,
+        }
     }
 }
 
 impl<H: Hit> Hit for RotateY<H> {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
-        todo!()
+        let to_obj_space = |mut v: Vec3| -> Vec3 {
+            let (x, z) = Self::to_obj_space(v.x(), v.z(), self.sin_theta, self.cos_theta);
+            v.0[0] = x;
+            v.0[2] = z;
+            v
+        };
+        let to_world_space = |mut v: Vec3| -> Vec3 {
+            let (x, z) = Self::to_world_space(v.x(), v.z(), self.sin_theta, self.cos_theta);
+            v.0[0] = x;
+            v.0[2] = z;
+            v
+        };
+        // Convert the ray from world space to object space.
+        let new_origin = to_obj_space(ray.origin);
+        let new_direction = to_obj_space(ray.direction);
+        let obj_ray = Ray {
+            origin: new_origin,
+            direction: new_direction,
+        };
+        // Perform the inner hit check within object space.
+        let mut hit_info = self.obj.hit(&obj_ray, ray_time)?;
+        // Convert the resulting hit point and normal vector from object space to
+        // world space.
+        hit_info.hit_point = to_world_space(hit_info.hit_point);
+        hit_info.normal = to_world_space(hit_info.normal);
+        Some(hit_info)
     }
 
     fn bounds(&self) -> &BoundingBox {
