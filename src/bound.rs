@@ -1,5 +1,7 @@
 //! Intervals and bounding boxes.
 
+use std::ops::{Add, AddAssign, Sub, SubAssign};
+
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
@@ -89,6 +91,40 @@ impl From<(f64, f64)> for Interval {
 impl From<Interval> for (f64, f64) {
     fn from(value: Interval) -> Self {
         (value.start, value.end)
+    }
+}
+
+impl Add<f64> for &Interval {
+    type Output = Interval;
+
+    /// Translates both ends of this interval by the given amount.
+    fn add(self, rhs: f64) -> Self::Output {
+        Interval { start: self.start + rhs, end: self.end + rhs }
+    }
+}
+
+impl AddAssign<f64> for Interval {
+    /// Translates both ends of this interval by the given amount.
+    fn add_assign(&mut self, rhs: f64) {
+        self.start += rhs;
+        self.end += rhs;
+    }
+}
+
+impl Sub<f64> for &Interval {
+    type Output = Interval;
+
+    /// Translates both ends of this interval by the given amount.
+    fn sub(self, rhs: f64) -> Self::Output {
+        Interval { start: self.start - rhs, end: self.end - rhs }
+    }
+}
+
+impl SubAssign<f64> for Interval {
+    /// Translates both ends of this interval by the given amount.
+    fn sub_assign(&mut self, rhs: f64) {
+        self.start -= rhs;
+        self.end -= rhs;
     }
 }
 
@@ -217,6 +253,19 @@ impl BoundingBox {
             if size < MINIMUM {
                 axis.expand_by(MINIMUM - size);
             }
+        }
+    }
+}
+
+impl Add<&Vec3> for &BoundingBox {
+    type Output = BoundingBox;
+
+    /// Translate this bounding box by the provided offset vector.
+    fn add(self, rhs: &Vec3) -> Self::Output {
+        BoundingBox {
+            x: &self.x + rhs.x(),
+            y: &self.y + rhs.y(),
+            z: &self.z + rhs.z(),
         }
     }
 }

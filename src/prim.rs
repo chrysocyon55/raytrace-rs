@@ -299,6 +299,72 @@ impl<'mat> Hit for Quad<'mat> {
     }
 }
 
+/// A wrapper around a collider that translates it by the given amount.
+pub struct Translate<H> {
+    obj: H,
+    offset: Vec3,
+    bounds: BoundingBox,
+}
+
+impl<H: Hit> Translate<H> {
+    /// Constructs a translated instance of a given object, offset by the given
+    /// vector.
+    pub fn new(obj: H, offset: Vec3) -> Self {
+        let bounds = obj.bounds() + &offset;
+        Self {
+            obj,
+            offset,
+            bounds,
+        }
+    }
+}
+
+impl<H: Hit> Hit for Translate<H> {
+    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
+        // Offset the ray in the opposite direction to the instance's offset:
+        let offset_ray = Ray {
+            origin: ray.origin - self.offset,
+            direction: ray.direction,
+        };
+        // Check if the translated ray hits the inner object:
+        let mut hit_info = self.obj.hit(&offset_ray, ray_time)?;
+        // If it does, then translate the hit point back to compensate for the ray's
+        // offset:
+        hit_info.hit_point += self.offset;
+        Some(hit_info)
+    }
+
+    fn bounds(&self) -> &BoundingBox {
+        &self.bounds
+    }
+}
+
+/// A wrapper around a collider that rotates it about the y-axis.
+pub struct RotateY<H> {
+    obj: H,
+    sin_theta: f64,
+    cos_theta: f64,
+    bounds: BoundingBox,
+}
+
+impl<H: Hit> RotateY<H> {
+    /// Constructs a rotated instance of the given object, rotate by the provided
+    /// angle (in degrees).
+    fn new(obj: H, angle: f64) -> Self {
+        todo!()
+    }
+}
+
+impl<H: Hit> Hit for RotateY<H> {
+    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
+        todo!()
+    }
+
+    fn bounds(&self) -> &BoundingBox {
+        &self.bounds
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
