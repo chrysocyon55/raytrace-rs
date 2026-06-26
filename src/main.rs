@@ -41,8 +41,8 @@ fn render_ball_field() {
 
     let mut world: Vec<Box<dyn Hit + Sync>> = vec![];
     // Add a large sphere to mimic a ground plane.
-    static GROUND_MAT: Lambertian = Lambertian::new(Vec3([0.5, 0.5, 0.5]), 0.9);
-    let ground = Sphere::new((0.0, -1000.0, 0.0).into(), 1000.0, &GROUND_MAT);
+    let ground_mat: Lambertian = Lambertian::new(Vec3([0.5, 0.5, 0.5]), 0.9);
+    let ground = Sphere::new((0.0, -1000.0, 0.0).into(), 1000.0, &ground_mat);
     world.push(Box::new(ground));
 
     if RENDER_FULL_SCENE {
@@ -81,13 +81,13 @@ fn render_ball_field() {
     }
 
     // Add center subject spheres.
-    static MATTE_RED: Lambertian = Lambertian::new(Vec3([0.95, 0.15, 0.05]), 0.8);
-    static GOLD: Metal = Metal::new(Vec3([0.925, 0.875, 0.3]), 0.2);
-    static GLASS: Dielectric = Dielectric::new(1.5);
+    let matte_red: Lambertian = Lambertian::new(Vec3([0.95, 0.15, 0.05]), 0.8);
+    let gold: Metal = Metal::new(Vec3([0.925, 0.875, 0.3]), 0.2);
+    let glass: Dielectric = Dielectric::new(1.5);
     let center_spheres: [Box<dyn Hit + Sync>; _] = [
-        Box::new(Sphere::new(Vec3([-4.0, 1.0, 0.0]), 1.0, &GOLD)),
-        Box::new(Sphere::new(Vec3([0.0, 1.0, 0.0]), 1.0, &MATTE_RED)),
-        Box::new(Sphere::new(Vec3([4.0, 1.0, 0.0]), 1.0, &GLASS)),
+        Box::new(Sphere::new(Vec3([-4.0, 1.0, 0.0]), 1.0, &gold)),
+        Box::new(Sphere::new(Vec3([0.0, 1.0, 0.0]), 1.0, &matte_red)),
+        Box::new(Sphere::new(Vec3([4.0, 1.0, 0.0]), 1.0, &glass)),
     ];
     world.extend(center_spheres);
 
@@ -157,20 +157,35 @@ fn render_emission_test() {
         ..Default::default()
     });
 
-    const GREY: Lambertian = Lambertian::new(Vec3([0.6, 0.6, 0.6]), 1.0);
-    let ground = Sphere::new(Vec3::new(0, -1000, 0), 1000.0, &GREY);
-    let subject = Sphere::new(Vec3::new(0, 2, 0), 2.0, &GREY);
+    let matte_grey: Lambertian = Lambertian::new(Vec3([0.6, 0.6, 0.6]), 1.0);
+    let ground = Sphere::new(Vec3::new(0, -1000, 0), 1000.0, &matte_grey);
+    let subject = Sphere::new(Vec3::new(0, 2, 0), 2.0, &matte_grey);
     // The diffuse light is stronger than (1.0, 1.0, 1.0) so that it lights
     // the scene even after the ray bounding several times.
-    const LIGHT_MAT: DiffuseLight = DiffuseLight::new(Vec3([0.0, 4.0, 4.0]));
+    let light_mat: DiffuseLight = DiffuseLight::new(Vec3([0.0, 4.0, 4.0]));
     let light = Quad::new(
         Vec3::new(3, 1, -2),
         (Vec3::new(2, 0, 0), Vec3::new(0, 2, 0)),
-        &LIGHT_MAT,
+        &light_mat,
     );
 
     let world = ObjTree::new(vec![Box::new(ground), Box::new(subject), Box::new(light)]);
     camera.render(&world, "./diffuse-light.png");
+}
+
+#[allow(unused)]
+fn render_cornell_box() {
+    let camera = Camera::with_parameters(&CameraParams {
+        image_width: 1920,
+        aspect_ratio: 1.0,
+        position: Vec3::new(278, 278, -800),
+        view_target: Vec3::new(278, 278, 0),
+        vertical_fov: 40.0,
+        samples: 200,
+        max_depth: 50,
+        ..Default::default()
+    });
+    todo!()
 }
 
 fn main() {

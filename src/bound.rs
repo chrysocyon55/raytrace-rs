@@ -262,7 +262,10 @@ mod tests {
 
     #[test]
     fn interval_expansion() {
-        let mut ival = Interval { start: 0.0, end: 2.0 };
+        let mut ival = Interval {
+            start: 0.0,
+            end: 2.0,
+        };
         ival.expand_by(1.0);
         assert_eq!(ival.start, -0.5);
     }

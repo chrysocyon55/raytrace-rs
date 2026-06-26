@@ -166,8 +166,28 @@ impl<'mat> Quad<'mat> {
     }
 
     /// Constructs a new axis-aligned cuboid with the given opposite corners.
-    pub fn new_cuboid(corners: (Vec3, Vec3), material: &'mat (dyn Material + Sync)) -> ObjList {
-        todo!()
+    pub fn new_cuboid(
+        corners: (&Vec3, &Vec3),
+        material: &'mat (dyn Material + Sync),
+    ) -> ObjList<'mat> {
+        let minmax = |x1: f64, x2: f64| if x1 <= x2 { (x1, x2) } else { (x2, x1) };
+        let (min_x, max_x) = minmax(corners.0.x(), corners.1.x());
+        let (min_y, max_y) = minmax(corners.0.y(), corners.1.y());
+        let (min_z, max_z) = minmax(corners.0.z(), corners.1.z());
+        let min_corner = Vec3([min_x, min_y, min_z]);
+        let max_corner = Vec3([max_x, max_y, max_z]);
+        let dx = Vec3::new(max_x - min_x, 0, 0);
+        let dy = Vec3::new(0, max_y - min_y, 0);
+        let dz = Vec3::new(0, 0, max_z - min_z);
+        let sides: [Box<dyn Hit + Sync>; _] = [
+            Box::new(Quad::new(min_corner, (dx, dy), material)),
+            Box::new(Quad::new(min_corner, (dy, dz), material)),
+            Box::new(Quad::new(min_corner, (dz, dx), material)),
+            Box::new(Quad::new(max_corner, (-dx, -dy), material)),
+            Box::new(Quad::new(max_corner, (-dy, -dz), material)),
+            Box::new(Quad::new(max_corner, (-dz, -dx), material)),
+        ];
+        sides.into_iter().collect()
     }
 }
 

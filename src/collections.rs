@@ -11,14 +11,13 @@ use crate::ray::Ray;
 /// Ray collision detection is performed by checking every object in the list,
 /// which may be slow for large scenes. Consider using [`SceneTree`] instead
 /// for scenes with many objects.
-#[allow(dead_code)]
 #[derive(Default)]
-pub struct ObjList {
-    objects: Vec<Box<dyn Hit>>,
+pub struct ObjList<'a> {
+    objects: Vec<Box<dyn Hit + Sync + 'a>>,
     bounds: BoundingBox,
 }
 
-impl ObjList {
+impl<'a> ObjList<'a> {
     /// Constructs a new empty scene.
     pub fn new() -> Self {
         Default::default()
@@ -26,14 +25,26 @@ impl ObjList {
 
     /// Add a new object into this scene, updating the scene's bounding box
     /// accordingly.
-    pub fn push(&mut self, object: Box<dyn Hit>) {
+    pub fn push(&mut self, object: Box<dyn Hit + Sync + 'a>) {
         self.bounds = BoundingBox::enclosing(&self.bounds, object.bounds());
         self.objects.push(object);
     }
 }
 
-impl FromIterator<Box<dyn Hit>> for ObjList {
-    fn from_iter<I: IntoIterator<Item = Box<dyn Hit>>>(iter: I) -> Self {
+impl<'a> From<Vec<Box<dyn Hit + Sync + 'a>>> for ObjList<'a> {
+    fn from(value: Vec<Box<dyn Hit + Sync + 'a>>) -> Self {
+        let bounds = value.iter().fold(BoundingBox::empty(), |bbox, obj| {
+            BoundingBox::enclosing(&bbox, obj.bounds())
+        });
+        Self {
+            objects: value,
+            bounds,
+        }
+    }
+}
+
+impl<'a> FromIterator<Box<dyn Hit + Sync + 'a>> for ObjList<'a> {
+    fn from_iter<I: IntoIterator<Item = Box<dyn Hit + Sync + 'a>>>(iter: I) -> Self {
         let mut scene = Self::new();
         for obj in iter.into_iter() {
             scene.push(obj);
@@ -42,7 +53,7 @@ impl FromIterator<Box<dyn Hit>> for ObjList {
     }
 }
 
-impl Hit for ObjList {
+impl Hit for ObjList<'_> {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         let mut curr_interval = self.bounds().intersected_by(ray, *ray_time)?;
         // Iterate over each hittable object in the scene, returning the hit
@@ -65,19 +76,19 @@ impl Hit for ObjList {
 
 /// A hierarchical collection of hittable objects that efficiently computes
 /// ray intersections.
-pub enum ObjTree {
+pub enum ObjTree<'a> {
     Empty,
-    Leaf(Box<dyn Hit + Sync>),
+    Leaf(Box<dyn Hit + Sync + 'a>),
     Tree {
-        left: Box<ObjTree>,
-        right: Box<ObjTree>,
+        left: Box<ObjTree<'a>>,
+        right: Box<ObjTree<'a>>,
         bound: BoundingBox,
     },
 }
 
-impl ObjTree {
+impl<'a> ObjTree<'a> {
     /// Constructs a new scene tree over a list of hittable objects.
-    pub fn new(mut objects: Vec<Box<dyn Hit + Sync>>) -> Self {
+    pub fn new(mut objects: Vec<Box<dyn Hit + Sync + 'a>>) -> Self {
         if objects.is_empty() {
             return Self::Empty;
         } else if objects.len() == 1 {
@@ -119,7 +130,7 @@ impl ObjTree {
     }
 }
 
-impl Hit for ObjTree {
+impl<'a> Hit for ObjTree<'a> {
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
         match self {
             // A tree containing no objects can never be hit.
