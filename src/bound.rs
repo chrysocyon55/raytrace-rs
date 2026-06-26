@@ -99,7 +99,10 @@ impl Add<f64> for &Interval {
 
     /// Translates both ends of this interval by the given amount.
     fn add(self, rhs: f64) -> Self::Output {
-        Interval { start: self.start + rhs, end: self.end + rhs }
+        Interval {
+            start: self.start + rhs,
+            end: self.end + rhs,
+        }
     }
 }
 
@@ -116,7 +119,10 @@ impl Sub<f64> for &Interval {
 
     /// Translates both ends of this interval by the given amount.
     fn sub(self, rhs: f64) -> Self::Output {
-        Interval { start: self.start - rhs, end: self.end - rhs }
+        Interval {
+            start: self.start - rhs,
+            end: self.end - rhs,
+        }
     }
 }
 
