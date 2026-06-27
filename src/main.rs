@@ -16,7 +16,7 @@ use crate::camera::{Camera, CameraParams};
 use crate::collections::{ObjList, ObjTree};
 use crate::hit::Hit;
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Material, Metal};
-use crate::prim::{Quad, Sphere};
+use crate::prim::{ConstantMedium, Quad, Sphere};
 use crate::vec3::{ColorVec3, Vec3};
 
 /// Allocate a new static reference on the heap.
@@ -254,9 +254,95 @@ fn render_cornell_box() {
     camera.render(&scene, "./cornell-box.png");
 }
 
+#[allow(unused)]
+fn render_cornell_smoke() {
+    let camera = Camera::with_parameters(&CameraParams {
+        image_width: 1080,
+        aspect_ratio: 1.0,
+        position: Vec3::new(278, 278, -800),
+        view_target: Vec3::new(278, 278, 0),
+        vertical_fov: 40.0,
+        samples: 200,
+        max_depth: 50,
+        ..Default::default()
+    });
+
+    const MATTE_RED: Lambertian = Lambertian::new(Vec3([0.65, 0.05, 0.05]), 1.0);
+    const MATTE_WHITE: Lambertian = Lambertian::new(Vec3([0.73, 0.73, 0.73]), 1.0);
+    const MATTE_GREEN: Lambertian = Lambertian::new(Vec3([0.12, 0.45, 0.15]), 1.0);
+    const WHITE_LIGHT: DiffuseLight = DiffuseLight::new(Vec3([15.0; _]));
+    // Construct room:
+    let mut room: Vec<Box<dyn Hit + Sync>> = vec![
+        // Left wall:
+        Box::new(Quad::new(
+            Vec3::new(555, 0, 0),
+            (Vec3::new(0, 555, 0), Vec3::new(0, 0, 555)),
+            &MATTE_GREEN,
+        )),
+        // Right wall:
+        Box::new(Quad::new(
+            Vec3::new(0, 0, 0),
+            (Vec3::new(0, 555, 0), Vec3::new(0, 0, 555)),
+            &MATTE_RED,
+        )),
+        // Ceiling light:
+        Box::new(Quad::new(
+            Vec3::new(343, 554, 332),
+            (Vec3::new(-130, 0, 0), Vec3::new(0, 0, -105)),
+            &WHITE_LIGHT,
+        )),
+        // Floor:
+        Box::new(Quad::new(
+            Vec3::new(0, 0, 0),
+            (Vec3::new(555, 0, 0), Vec3::new(0, 0, 555)),
+            &MATTE_WHITE,
+        )),
+        // Ceiling:
+        Box::new(Quad::new(
+            Vec3::new(555, 555, 555),
+            (Vec3::new(-555, 0, 0), Vec3::new(0, 0, -555)),
+            &MATTE_WHITE,
+        )),
+        // Back wall:
+        Box::new(Quad::new(
+            Vec3::new(0, 0, 555),
+            (Vec3::new(555, 0, 0), Vec3::new(0, 555, 0)),
+            &MATTE_WHITE,
+        )),
+    ];
+
+    // Add rotated cuboids:
+    let cuboids: [Box<dyn Hit + Sync>; _] = [
+        Box::new(ConstantMedium::new(
+            Quad::new_cuboid(
+                (&Vec3::new(130, 0, 65), &Vec3::new(295, 165, 230)),
+                &MATTE_WHITE,
+            )
+            .rotate_y(-18.0),
+            ColorVec3::new(0, 0, 0),
+            0.01,
+        )),
+        Box::new(ConstantMedium::new(
+            Quad::new_cuboid(
+                (&Vec3::new(265, 0, 295), &Vec3::new(430, 330, 460)),
+                &MATTE_WHITE,
+            )
+            .rotate_y(15.0)
+            .translate(Vec3::new(-50, 0, 0)),
+            ColorVec3::new(1, 1, 1),
+            0.01,
+        )),
+    ];
+    room.extend(cuboids);
+
+    let scene = ObjList::from(room);
+    camera.render(&scene, "./cornell-smoke.png");
+}
+
 fn main() {
     // render_ball_field();
     // render_quads();
     // render_emission_test();
-    render_cornell_box();
+    // render_cornell_box();
+    render_cornell_smoke();
 }

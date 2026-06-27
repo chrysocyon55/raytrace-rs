@@ -3,14 +3,15 @@
 use std::fmt::{self, Debug};
 
 use itertools::Itertools;
+use rand::RngExt;
 
 use crate::bound::{BoundingBox, Interval};
 use crate::camera;
 use crate::collections::ObjList;
-use crate::hit::{self, Hit, HitInfo};
-use crate::material::Material;
+use crate::hit::{self, Face, Hit, HitInfo};
+use crate::material::{Isotropic, Material};
 use crate::ray::Ray;
-use crate::vec3::Vec3;
+use crate::vec3::{ColorVec3, Vec3};
 
 /// A spherical collider.
 pub struct Sphere<'mat> {
@@ -434,6 +435,78 @@ impl<H: Hit> Hit for RotateY<H> {
 
     fn bounds(&self) -> &BoundingBox {
         &self.bounds
+    }
+}
+
+/// A constant-density volume that randomly chooses between scattering rays and
+/// allowing them to pass through.
+pub struct ConstantMedium<H> {
+    boundary: H,
+    material: Isotropic,
+    density: f64,
+}
+
+impl<H> ConstantMedium<H> {
+    /// Constructs a new constant-density volume. A higher `density` allows fewer
+    /// rays to pass through.
+    ///
+    /// Assumes that the provided boundary is convex and has a non-zero volume.
+    pub const fn new(boundary: H, albedo: ColorVec3, density: f64) -> Self {
+        assert!(density > 0.0);
+        Self {
+            boundary,
+            material: Isotropic::new(albedo),
+            density,
+        }
+    }
+}
+
+impl<H: Hit> Hit for ConstantMedium<H> {
+    fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>> {
+        // Get the points where the ray would enter and exit this medium if it were
+        // to travel across all time, unimpeded.
+        let entry_info = self.boundary.hit(ray, &Interval::universal())?;
+        let exit_interval = Interval {
+            start: entry_info.time + 0.0001,
+            end: f64::INFINITY,
+        };
+        let exit_info = self.boundary.hit(ray, &exit_interval)?;
+
+        // Cap the entry and exit times to within the ray's lifetime, and ensure
+        // they are valid.
+        let entry_time = entry_info.time.max(ray_time.start).max(0.0);
+        let exit_time = exit_info.time.min(ray_time.end);
+        if entry_time >= exit_time {
+            return None;
+        }
+
+        // The probability of the ray scatting instead of passing through is
+        // dependent on both the distance the ray travels through the volume, as
+        // well as the volume's density.
+        let ray_length = ray.direction.length();
+        let distance_inside_boundary = (exit_time - entry_time) * ray_length;
+        //
+        let hit_distance = -(rand::rng().random::<f64>().ln()) / self.density;
+        if hit_distance > distance_inside_boundary {
+            // The ray would be scattered at a distance deeper than the depth of the
+            // volume, so the ray "misses" the volume, travelling through instead.
+            None
+        } else {
+            // Otherwise, the ray interacts with the volume at the determined depth.
+            let hit_time = entry_time + hit_distance / ray_length;
+            let hit_point = ray.at_time(hit_time);
+            Some(HitInfo {
+                hit_point,
+                normal: Vec3::new(1, 0, 0), // arbitrary
+                time: hit_time,
+                face: Face::Front, // arbitrary
+                material: &self.material,
+            })
+        }
+    }
+
+    fn bounds(&self) -> &BoundingBox {
+        self.boundary.bounds()
     }
 }
 

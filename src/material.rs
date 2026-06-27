@@ -211,3 +211,29 @@ impl Material for DiffuseLight {
         self.color
     }
 }
+
+/// A material that scatters light uniformly in all directions.
+///
+/// Intended for use with transluscent volumes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Isotropic {
+    albedo: ColorVec3,
+}
+
+impl Isotropic {
+    /// Constructs a new isotropic material of a given color.
+    pub const fn new(albedo: ColorVec3) -> Self {
+        Self { albedo }
+    }
+}
+
+impl Material for Isotropic {
+    fn scatter(&self, _ray: &Ray, hit_info: &HitInfo) -> Option<(ColorVec3, Ray)> {
+        let scattered_ray = Ray {
+            origin: hit_info.hit_point,
+            direction: Vec3::random_unit(),
+        };
+        let attenuation = self.albedo;
+        Some((attenuation, scattered_ray))
+    }
+}
