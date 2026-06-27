@@ -92,7 +92,7 @@ impl<'a> ObjTree<'a> {
         if objects.is_empty() {
             return Self::Empty;
         } else if objects.len() == 1 {
-            return Self::Leaf(objects.into_iter().next().unwrap());
+            return Self::Leaf(objects.swap_remove(0));
         }
         // Compute the overall bounding box for this tree.
         let bound = objects.iter().fold(BoundingBox::empty(), |acc, x| {
