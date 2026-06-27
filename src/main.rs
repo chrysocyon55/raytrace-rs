@@ -16,7 +16,7 @@ use crate::camera::{Camera, CameraParams};
 use crate::collections::{ObjList, ObjTree};
 use crate::hit::Hit;
 use crate::material::{Dielectric, DiffuseLight, Lambertian, Material, Metal};
-use crate::prim::{Quad, RotateY, Sphere, Translate};
+use crate::prim::{Quad, Sphere};
 use crate::vec3::{ColorVec3, Vec3};
 
 /// Allocate a new static reference on the heap.
@@ -232,23 +232,21 @@ fn render_cornell_box() {
 
     // Add rotated cuboids:
     let cuboids: [Box<dyn Hit + Sync>; _] = [
-        Box::new(RotateY::new(
+        Box::new(
             Quad::new_cuboid(
                 (&Vec3::new(130, 0, 65), &Vec3::new(295, 165, 230)),
                 &MATTE_WHITE,
-            ),
-            -18.0,
-        )),
-        Box::new(Translate::new(
-            RotateY::new(
-                Quad::new_cuboid(
-                    (&Vec3::new(265, 0, 295), &Vec3::new(430, 330, 460)),
-                    &MATTE_WHITE,
-                ),
-                15.0,
-            ),
-            Vec3::new(-50, 0, 0),
-        )),
+            )
+            .rotate_y(-18.0),
+        ),
+        Box::new(
+            Quad::new_cuboid(
+                (&Vec3::new(265, 0, 295), &Vec3::new(430, 330, 460)),
+                &MATTE_WHITE,
+            )
+            .rotate_y(15.0)
+            .translate(Vec3::new(-50, 0, 0)),
+        ),
     ];
     room.extend(cuboids);
 

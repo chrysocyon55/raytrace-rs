@@ -4,6 +4,7 @@ use std::fmt::{self, Debug};
 
 use crate::bound::{BoundingBox, Interval};
 use crate::material::Material;
+use crate::prim::{RotateY, Translate};
 use crate::ray::Ray;
 use crate::vec3::Vec3;
 
@@ -57,6 +58,12 @@ pub fn face_normal(ray: &Ray, outward_normal: Vec3) -> (Face, Vec3) {
 }
 
 /// Objects that can interact with ("hit") light rays.
+///
+/// Objects implementing `Hit` should override `Hit::hit` to determine when a
+/// ray collides with the object, and `Hit::bounds` to give an upper bound on
+/// the physical size of this object.
+/// The provided methods are all instance adapters offered for convenience and
+/// should not be overridden.
 pub trait Hit {
     /// Determines whether a ray collides with this object in the given time
     /// interval.
@@ -66,6 +73,23 @@ pub trait Hit {
     /// collide with the object, returns `None`.
     fn hit<'m>(&'m self, ray: &Ray, ray_time: &Interval) -> Option<HitInfo<'m>>;
 
-    /// Return a bounding box enclosing this object.
+    /// Returns a bounding box enclosing this object.
     fn bounds(&self) -> &BoundingBox;
+
+    /// Translates this object by the given offset.
+    fn translate(self, offset: Vec3) -> Translate<Self>
+    where
+        Self: Sized,
+    {
+        Translate::new(self, offset)
+    }
+
+    /// Rotates this object about the positive y-axis by the given angle, in
+    /// degrees.
+    fn rotate_y(self, angle: f64) -> RotateY<Self>
+    where
+        Self: Sized,
+    {
+        RotateY::new(self, angle)
+    }
 }
