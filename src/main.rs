@@ -262,8 +262,8 @@ fn render_cornell_smoke() {
         position: Vec3::new(278, 278, -800),
         view_target: Vec3::new(278, 278, 0),
         vertical_fov: 40.0,
-        samples: 200,
-        max_depth: 50,
+        samples: 500,
+        max_depth: 100,
         ..Default::default()
     });
 
